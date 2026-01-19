@@ -18,7 +18,10 @@
             font-size: 0.65rem; font-weight: bold; font-family: 'Fira Code', monospace;
             transition: all 0.3s ease;
         }
-        @media (min-width: 768px) { .state-cell { width: 2rem; height: 2rem; font-size: 0.7rem; } }
+        /* PC에서는 셀 크기 살짝 키움 */
+        @media (min-width: 1024px) { 
+            .state-cell { width: 2rem; height: 2rem; font-size: 0.75rem; } 
+        }
         
         /* Key Cell Style */
         .key-cell {
@@ -27,16 +30,15 @@
             border: 1px solid #eab308; background-color: #422006; color: #fef08a;
             font-size: 0.65rem; font-weight: bold; font-family: 'Fira Code', monospace;
         }
-        @media (min-width: 768px) { .key-cell { width: 2rem; height: 2rem; font-size: 0.7rem; } }
+        @media (min-width: 1024px) { .key-cell { width: 2rem; height: 2rem; font-size: 0.75rem; } }
 
-        /* Phases */
+        /* Phases Colors */
         .phase-shift { background-color: #1e293b; color: #fcd34d; }
         .phase-sub { background-color: #1e293b; color: #93c5fd; }
         .phase-key { background-color: #1e293b; color: #c4b5fd; }
         .phase-mix { background-color: #1e293b; color: #86efac; }
         .phase-init { background-color: #1e293b; color: #f472b6; border-color: #be185d; }
         
-        /* Arrow Style */
         .arrow-right { 
             display: flex; align-items: center; justify-content: center; 
             color: #64748b; font-size: 1.5rem; font-weight: bold;
@@ -45,7 +47,7 @@
 
         .operator { font-size: 1.5rem; font-weight: bold; color: #94a3b8; display: flex; align-items: center; justify-content: center; margin: 0 0.5rem; }
 
-        /* Code Syntax */
+        /* Code Highlighting */
         .c-key { color: #c678dd; font-weight: bold; } .c-type { color: #e5c07b; } .c-func { color: #61afef; }
         .c-var { color: #e06c75; } .c-num { color: #d19a66; } .c-com { color: #7f848e; font-style: italic; }
         
@@ -55,7 +57,10 @@
         @keyframes pulse-highlight { 0%, 100% { background-color: #374151; border-left-color: #d8b4fe; color: #d8b4fe; } 50% { background-color: transparent; border-left-color: transparent; color: #7f848e; } }
 
         /* Card Styles */
-        .step-card { transition: all 0.2s; cursor: pointer; position: relative; min-width: 130px; /* 카드 최소 너비 확보 */ }
+        .step-card { 
+            transition: all 0.2s; cursor: pointer; position: relative; 
+            min-width: 150px; /* [중요] 큐브가 잘리지 않도록 최소 너비 확보 */
+        }
         .step-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); border-color: #a78bfa; z-index: 10; }
         .step-card.active-card { border-color: #d8b4fe; box-shadow: 0 0 15px rgba(216, 180, 254, 0.3); }
         .step-card::after { content: '보기'; position: absolute; top: -10px; right: 5px; background: #7c3aed; color: white; font-size: 9px; padding: 2px 4px; border-radius: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
@@ -139,6 +144,7 @@
                         <div id="r0-result" class="grid grid-cols-4 gap-0.5 border border-pink-500/50 p-0.5 rounded"></div>
                     </div>
                 </div>
+                <p class="text-center text-slate-500 text-xs md:hidden mt-1">👆 수식을 좌우로 밀어서 확인하세요</p>
             </section>
 
             <div class="bg-slate-800/30 border border-slate-700/50 rounded-xl overflow-x-auto lg:overflow-visible custom-scrollbar p-4">
@@ -195,7 +201,7 @@
 
                         <div class="arrow-right">→</div>
 
-                        <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700 flex flex-col items-center step-card cursor-default" style="min-width:130px">
+                        <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700 flex flex-col items-center step-card cursor-default" style="min-width:150px">
                             <h3 class="text-slate-400 font-bold mb-2 text-[10px]">End</h3>
                             <div id="grid-out" class="grid grid-cols-4 gap-0.5"></div>
                         </div>
@@ -236,6 +242,7 @@
     </main>
 
     <script>
+        // ... (Javascript는 로직 변화가 없으므로 이전과 완전히 동일합니다) ...
         const CODE_SNIPPETS = {
             main: `<span class="c-key">void</span> <span class="c-func">aes_inv_cipher</span>(uint8_t *in, uint8_t *out, uint8_t *w) {\n    uint8_t state[4*Nb];\n    uint8_t r, i, j;\n\n    <span class="c-com">// 1단계: 입력 -> State 변환</span>\n    <span class="c-key">for</span> (i = 0; i < 4; i++) {\n        <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n            state[Nb*i+j] = in[i+4*j];\n        }\n    }\n\n    <span class="c-com">// 2단계: 초기 라운드 키 추가 (마지막 라운드 키 사용)</span>\n<span id="line-add-round-key-0" class="code-line">    <span class="c-func">add_round_key</span>(state, w, Nr);</span>\n\n<span id="line-step-3" class="code-line">    <span class="c-com">// 3단계: 역 라운드 루프 (Nr-1 다운 카운트)</span></span>\n<span id="block-loop" class="code-line">    <span class="c-key">for</span> (r = Nr - 1; r >= 1; r--) {\n<span id="line-inv-shift" class="code-line">        <span class="c-func">inv_shift_rows</span>(state);</span>\n<span id="line-inv-sub" class="code-line">        <span class="c-func">inv_sub_bytes</span>(state);</span>\n<span id="line-add-round-key" class="code-line">        <span class="c-func">add_round_key</span>(state, w, r);</span>\n<span id="line-inv-mix" class="code-line">        <span class="c-func">inv_mix_columns</span>(state);</span>\n    }</span>\n\n    <span class="c-com">// 4단계: 마지막 라운드 (InvMixColumns 제외)</span>\n<span id="block-final" class="code-line"><span id="line-final-shift" class="code-line">    <span class="c-func">inv_shift_rows</span>(state);</span>\n<span id="line-final-sub" class="code-line">    <span class="c-func">inv_sub_bytes</span>(state);</span>\n<span id="line-final-key" class="code-line">    <span class="c-func">add_round_key</span>(state, w, 0);</span></span>\n\n    <span class="c-com">// 5단계: 출력 변환</span>\n    <span class="c-key">for</span> (i = 0; i < 4; i++) {\n        <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n            out[i+4*j] = state[Nb*i+j];\n        }\n    }\n}`,
             inv_sub_bytes: `<span class="c-key">void</span> <span class="c-func">inv_sub_bytes</span>(uint8_t *state) {\n    uint8_t i, j;\n    <span class="c-com">// 역 S-Box (inv_s_box)를 사용하여 치환</span>\n    <span class="c-key">for</span> (i = 0; i < 4; i++) {\n        <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n            state[Nb*i+j] = inv_s_box[state[Nb*i+j]];\n        }\n    }\n}`,
