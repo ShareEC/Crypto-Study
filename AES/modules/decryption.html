@@ -3,251 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AES 복호화 라운드 시각화 (Decryption)</title>
+    <title>AES 복호화 라운드 시각화</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
-        
-        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
-        .mono { font-family: 'Roboto Mono', monospace; }
+    <link rel="stylesheet" href="../../assets/css/style.css"> <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        .mono { font-family: 'Fira Code', monospace; }
         
         /* Grid Cell Styles */
         .state-cell {
-            width: 2rem; height: 2rem;
+            width: 1.8rem; height: 1.8rem; /* 모바일 대응 약간 축소 */
             display: flex; align-items: center; justify-content: center;
             border: 1px solid #334155;
-            font-size: 0.7rem; font-weight: bold; font-family: 'Roboto Mono', monospace;
+            font-size: 0.65rem; font-weight: bold; font-family: 'Fira Code', monospace;
             transition: all 0.3s ease;
+        }
+        @media (min-width: 768px) {
+            .state-cell { width: 2rem; height: 2rem; font-size: 0.7rem; }
         }
         
         /* Key Cell Style */
         .key-cell {
-            width: 2rem; height: 2rem;
+            width: 1.8rem; height: 1.8rem;
             display: flex; align-items: center; justify-content: center;
-            border: 1px solid #eab308; /* Yellow border */
-            background-color: #422006; /* Dark Yellow/Brown bg */
-            color: #fef08a; /* Light Yellow text */
-            font-size: 0.7rem; font-weight: bold; font-family: 'Roboto Mono', monospace;
+            border: 1px solid #eab308; background-color: #422006; color: #fef08a;
+            font-size: 0.65rem; font-weight: bold; font-family: 'Fira Code', monospace;
         }
+        @media (min-width: 768px) { .key-cell { width: 2rem; height: 2rem; font-size: 0.7rem; } }
 
-        /* Phase Colors (Decryption Theme - Purple Base) */
-        .phase-shift { background-color: #1e293b; color: #fcd34d; } /* Yellow */
-        .phase-sub { background-color: #1e293b; color: #93c5fd; } /* Blue */
-        .phase-key { background-color: #1e293b; color: #c4b5fd; } /* Purple */
-        .phase-mix { background-color: #1e293b; color: #86efac; } /* Green */
+        /* Phases */
+        .phase-shift { background-color: #1e293b; color: #fcd34d; }
+        .phase-sub { background-color: #1e293b; color: #93c5fd; }
+        .phase-key { background-color: #1e293b; color: #c4b5fd; }
+        .phase-mix { background-color: #1e293b; color: #86efac; }
         .phase-init { background-color: #1e293b; color: #f472b6; border-color: #be185d; }
         
-        .arrow-right {
-            display: flex; align-items: center; justify-content: center;
-            color: #475569; font-size: 1.2rem;
-        }
-
+        .arrow-right { display: flex; align-items: center; justify-content: center; color: #475569; font-size: 1.2rem; }
         .operator { font-size: 1.5rem; font-weight: bold; color: #94a3b8; display: flex; align-items: center; justify-content: center;}
 
-        /* Code Syntax Highlighting */
-        .c-key { color: #c678dd; font-weight: bold; }
-        .c-type { color: #e5c07b; }
-        .c-func { color: #61afef; }
-        .c-var { color: #e06c75; }
-        .c-num { color: #d19a66; }
-        .c-com { color: #7f848e; font-style: italic; }
-        .c-def { color: #d19a66; font-weight: bold; }
+        /* Code Syntax */
+        .c-key { color: #c678dd; font-weight: bold; } .c-type { color: #e5c07b; } .c-func { color: #61afef; }
+        .c-var { color: #e06c75; } .c-num { color: #d19a66; } .c-com { color: #7f848e; font-style: italic; }
         
-        /* Code Interactions */
         .code-line { display: block; padding: 0 4px; border-radius: 2px; transition: background-color 0.2s; border-left: 3px solid transparent; }
         .code-active { background-color: #374151; color: #d8b4fe; font-weight: bold; border-left-color: #d8b4fe; } 
-        .code-hover { background-color: #4c1d95; color: white; font-weight: bold; border-left-color: #a78bfa; }
-
-        @keyframes pulse-highlight {
-            0%, 100% { background-color: #374151; border-left-color: #d8b4fe; color: #d8b4fe; }
-            50% { background-color: transparent; border-left-color: transparent; color: #7f848e; }
-        }
         .code-blink { animation: pulse-highlight 2s infinite; font-weight: bold; }
+        @keyframes pulse-highlight { 0%, 100% { background-color: #374151; border-left-color: #d8b4fe; color: #d8b4fe; } 50% { background-color: transparent; border-left-color: transparent; color: #7f848e; } }
 
         /* Card Styles */
         .step-card { transition: all 0.2s; cursor: pointer; position: relative; }
         .step-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); border-color: #a78bfa; z-index: 10; }
         .step-card.active-card { border-color: #d8b4fe; box-shadow: 0 0 15px rgba(216, 180, 254, 0.3); }
-        .step-card::after {
-            content: '클릭하여 코드 보기';
-            position: absolute; top: -12px; right: 10px;
-            background: #7c3aed; color: white; font-size: 9px;
-            padding: 2px 6px; border-radius: 4px;
-            opacity: 0; transition: opacity 0.2s; pointer-events: none;
-        }
+        .step-card::after { content: '보기'; position: absolute; top: -10px; right: 5px; background: #7c3aed; color: white; font-size: 9px; padding: 2px 4px; border-radius: 4px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
         .step-card:hover::after { opacity: 1; }
-
     </style>
 </head>
-<body class="p-4 min-h-screen flex flex-col items-center">
-	<div class="fixed top-4 left-4 z-50">
-        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
-            <span>🏠</span>
-        </a>
-    </div>
-    <div class="max-w-[1600px] w-full mb-4 flex justify-between items-center">
-        <div>
-            <h1 class="text-2xl font-bold text-purple-400 flex items-center gap-2">
-                AES 복호화 라운드 (Decryption)
-                <span class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded font-normal">Inverse Cipher</span>
+<body class="flex flex-col items-center min-h-screen bg-slate-900 pb-10"> <a href="../index.html" class="home-btn"><span>🏠</span> Back</a>
+
+    <div class="w-full max-w-[1600px] mb-4 flex flex-col md:flex-row justify-between items-center gap-4 mt-14 md:mt-6 px-4">
+        <div class="text-center md:text-left">
+            <h1 class="text-xl md:text-2xl font-bold text-purple-400 flex items-center justify-center md:justify-start gap-2">
+                AES 복호화 라운드
+                <span class="text-[10px] bg-slate-700 text-slate-300 px-2 py-1 rounded font-normal">Inverse Cipher</span>
             </h1>
-            <p class="text-slate-400 text-xs">
-                암호문을 역순으로 처리하여 평문을 복원합니다. 키 스케줄은 <strong>역순(Round 10 → 0)</strong>으로 사용됩니다.
+            <p class="text-slate-400 text-xs mt-1">
+                암호문을 역순으로 처리하여 평문을 복원합니다. (Key Round 10 → 0)
             </p>
         </div>
-        <a href="AES 전체 흐름도.html" class="text-slate-500 hover:text-white text-xs font-bold flex items-center bg-slate-800 px-3 py-2 rounded border border-slate-700 transition">
-            전체 지도
+        <a href="../index.html" class="text-slate-500 hover:text-white text-xs font-bold flex items-center bg-slate-800 px-3 py-2 rounded border border-slate-700 transition">
+            전체 구조도 보기
         </a>
     </div>
 
-    <main class="max-w-[1600px] w-full grid grid-cols-12 gap-6">
+    <main class="max-w-[1600px] w-full grid grid-cols-1 lg:grid-cols-12 gap-6 px-2 md:px-4">
 
-        <div class="col-span-12 lg:col-span-8 space-y-4">
+        <div class="col-span-1 lg:col-span-8 space-y-4">
             
             <section class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow-lg flex flex-col gap-3">
-                <div class="flex justify-between items-center border-b border-slate-700 pb-3">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-3">
+                
+                <div class="flex flex-col md:flex-row justify-between items-center border-b border-slate-700 pb-3 gap-3">
+                    <div class="flex items-center gap-2 md:gap-4 w-full md:w-auto justify-between md:justify-start">
+                        <div class="bg-slate-900 px-2 py-1.5 rounded-lg border border-slate-600 flex items-center gap-2 md:gap-3">
                             <label class="text-xs text-slate-400 font-bold">ROUND</label>
-                            <button onclick="changeRound(-1)" class="text-slate-500 hover:text-white">◀</button>
-                            <span id="currentRoundDisplay" class="w-12 text-center text-xl font-bold text-white mono">1</span>
-                            <button onclick="changeRound(1)" class="text-slate-500 hover:text-white">▶</button>
+                            <button onclick="changeRound(-1)" class="text-slate-500 hover:text-white px-2">◀</button>
+                            <span id="currentRoundDisplay" class="w-8 md:w-12 text-center text-lg md:text-xl font-bold text-white mono">1</span>
+                            <button onclick="changeRound(1)" class="text-slate-500 hover:text-white px-2">▶</button>
                         </div>
-                        <div class="text-xs text-slate-500">
-                            <span class="text-purple-400 font-bold">Flow:</span> InvShift → InvSub → AddKey → InvMix
+                        <div class="text-[10px] md:text-xs text-slate-500 text-right md:text-left">
+                            <span class="text-purple-400 font-bold">Flow:</span> Shift → Sub → Add → Mix
                         </div>
                     </div>
-                    <button onclick="resetSimulation()" class="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-6 py-2 rounded shadow transition transform active:scale-95">
-                        설정 적용 및 재시작 ↻
+                    <button onclick="resetSimulation()" class="w-full md:w-auto bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-6 py-2 rounded shadow transition transform active:scale-95">
+                        재시작 ↻
                     </button>
                 </div>
 
-                <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex flex-col md:flex-row gap-2 md:gap-4">
                     <div class="flex-1">
                         <div class="relative">
                             <span class="absolute left-2 top-1/2 -translate-y-1/2 text-purple-400 text-[10px] font-bold">KEY</span>
                             <input type="text" id="keyInput" 
                                 value="2B7E151628AED2A6ABF7158809CF4F3C" maxlength="32" oninput="validateHex(this)"
-                                class="pl-8 pr-2 py-1.5 bg-slate-900 border border-purple-500 rounded text-[10px] mono text-white w-full focus:outline-none focus:border-purple-400 uppercase tracking-widest"
-                                placeholder="Master Key (32 Hex)">
+                                class="pl-10 pr-2 py-2 bg-slate-900 border border-purple-500 rounded text-[10px] md:text-xs mono text-white w-full focus:outline-none focus:border-purple-400 uppercase tracking-widest">
                         </div>
                     </div>
-
                     <div class="flex-1">
                         <div class="relative">
-                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-bold">CIPHER</span>
+                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-bold">DATA</span>
                             <input type="text" id="stateInput" 
                                 value="3925841D02DC09FBDC118597196A0B32" maxlength="32" oninput="validateHex(this)"
-                                class="pl-12 pr-2 py-1.5 bg-slate-900 border border-slate-500 rounded text-[10px] mono text-white w-full focus:outline-none focus:border-white uppercase tracking-widest"
-                                placeholder="Ciphertext (32 Hex)">
+                                class="pl-12 pr-2 py-2 bg-slate-900 border border-slate-500 rounded text-[10px] md:text-xs mono text-white w-full focus:outline-none focus:border-white uppercase tracking-widest">
                         </div>
-                        <div class="text-[9px] text-slate-500 text-right mt-1">* 암호화된 데이터를 입력하세요.</div>
                     </div>
                 </div>
             </section>
 
             <section id="round0Panel" 
-                     class="bg-pink-900/10 rounded-xl p-3 border border-pink-500/30 shadow-lg hidden step-card"
+                     class="bg-pink-900/10 rounded-xl p-3 border border-pink-500/30 shadow-lg hidden step-card cursor-pointer"
                      onclick="showCode('add_round_key', this)">
-                <h3 class="text-sm font-bold text-pink-400 mb-2 flex items-center gap-2">
+                <h3 class="text-sm font-bold text-pink-400 mb-2 flex items-center justify-center md:justify-start gap-2">
                     <span class="bg-pink-500 text-white text-[10px] px-2 py-0.5 rounded">Pre-Round</span>
                     Initial Key Addition
-                    <span class="text-[10px] text-slate-400 font-normal ml-2">(Using Round 10 Key)</span>
                 </h3>
-                <div class="flex items-center justify-center gap-2">
-                    <div id="r0-plain" class="grid grid-cols-4 gap-0.5"></div>
-                    <div class="operator">⊕</div>
-                    <div id="r0-key" class="grid grid-cols-4 gap-0.5 opacity-80"></div>
-                    <div class="operator">=</div>
-                    <div id="r0-result" class="grid grid-cols-4 gap-0.5 border border-pink-500/50 p-0.5 rounded"></div>
+                <div class="scroll-box bg-transparent border-0">
+                    <div class="scroll-content justify-center items-center gap-2">
+                        <div id="r0-plain" class="grid grid-cols-4 gap-0.5"></div>
+                        <div class="operator">⊕</div>
+                        <div id="r0-key" class="grid grid-cols-4 gap-0.5 opacity-80"></div>
+                        <div class="operator">=</div>
+                        <div id="r0-result" class="grid grid-cols-4 gap-0.5 border border-pink-500/50 p-0.5 rounded"></div>
+                    </div>
                 </div>
             </section>
 
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-2">
-                
-                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center step-card active-card"
-                     id="startCard"
-                     onclick="showCode('main', this)">
-                    <h3 class="text-slate-300 font-bold mb-2 text-xs">Start State</h3>
-                    <div id="grid-start" class="grid grid-cols-4 gap-0.5"></div>
+            <div class="scroll-box bg-slate-800/30 border-slate-700/50">
+                <div class="scroll-content flex gap-2 items-start justify-start md:justify-center">
+                    
+                    <div class="bg-slate-800/80 p-2 rounded-xl border border-slate-600 flex flex-col items-center step-card active-card min-w-[100px]"
+                         id="startCard" onclick="showCode('main', this)">
+                        <h3 class="text-slate-300 font-bold mb-2 text-[10px]">Start</h3>
+                        <div id="grid-start" class="grid grid-cols-4 gap-0.5"></div>
+                    </div>
+
+                    <div class="arrow-right self-center">→</div>
+
+                    <div class="bg-slate-800 p-2 rounded-xl border border-yellow-500/30 flex flex-col items-center step-card min-w-[100px]"
+                         onclick="showCode('inv_shift_rows', this)">
+                        <h3 class="text-yellow-300 font-bold mb-2 text-[10px]">1. Shift</h3>
+                        <div id="grid-shift" class="grid grid-cols-4 gap-0.5"></div>
+                    </div>
+
+                    <div class="arrow-right self-center">→</div>
+
+                    <div class="bg-slate-800 p-2 rounded-xl border border-blue-500/30 flex flex-col items-center step-card min-w-[100px]"
+                         onclick="showCode('inv_sub_bytes', this)">
+                        <h3 class="text-blue-300 font-bold mb-2 text-[10px]">2. Sub</h3>
+                        <div id="grid-sub" class="grid grid-cols-4 gap-0.5"></div>
+                    </div>
+
+                    <div class="arrow-right self-center">→</div>
+
+                    <div class="bg-slate-800 p-2 rounded-xl border border-purple-500/30 flex flex-col items-center step-card min-w-[100px]"
+                         onclick="showCode('add_round_key', this)">
+                        <h3 class="text-purple-300 font-bold mb-2 text-[10px]">3. Key</h3>
+                        <div id="grid-key" class="grid grid-cols-4 gap-0.5"></div>
+                    </div>
+
+                    <div class="arrow-right self-center">→</div>
+
+                    <div class="bg-slate-800 p-2 rounded-xl border border-green-500/30 flex flex-col items-center step-card min-w-[100px]"
+                         id="mixColContainer" onclick="showCode('inv_mix_columns', this)">
+                        <h3 class="text-green-300 font-bold mb-2 text-[10px]">4. Mix</h3>
+                        <div id="mixColActive"><div id="grid-mix" class="grid grid-cols-4 gap-0.5"></div></div>
+                        <div id="mixColSkipped" class="hidden h-28 w-28 flex items-center justify-center border border-dashed border-slate-600 rounded text-slate-500 text-[10px]">SKIP</div>
+                    </div>
+
+                    <div class="arrow-right self-center">→</div>
+
+                    <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700 flex flex-col items-center min-w-[100px]">
+                        <h3 class="text-slate-400 font-bold mb-2 text-[10px]">End</h3>
+                        <div id="grid-out" class="grid grid-cols-4 gap-0.5"></div>
+                    </div>
+
                 </div>
-
-                <div class="arrow-right hidden lg:flex">→</div>
-
-                <div class="bg-slate-800 p-3 rounded-xl border border-yellow-500/30 flex flex-col items-center step-card"
-                     onclick="showCode('inv_shift_rows', this)">
-                    <h3 class="text-yellow-300 font-bold mb-2 text-xs">1. InvShiftRows</h3>
-                    <div id="grid-shift" class="grid grid-cols-4 gap-0.5"></div>
-                </div>
-
-                <div class="arrow-right hidden lg:flex">→</div>
-
-                <div class="bg-slate-800 p-3 rounded-xl border border-blue-500/30 flex flex-col items-center step-card"
-                     onclick="showCode('inv_sub_bytes', this)">
-                    <h3 class="text-blue-300 font-bold mb-2 text-xs">2. InvSubBytes</h3>
-                    <div id="grid-sub" class="grid grid-cols-4 gap-0.5"></div>
-                </div>
-
             </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-2">
-
-                <div class="bg-slate-800 p-3 rounded-xl border border-purple-500/30 flex flex-col items-center step-card"
-                     onclick="showCode('add_round_key', this)">
-                    <h3 class="text-purple-300 font-bold mb-2 text-xs">3. AddRoundKey</h3>
-                    <div id="grid-key" class="grid grid-cols-4 gap-0.5"></div>
-                    <div class="mt-2 text-[9px] text-purple-400">⊕ Round Key</div>
-                </div>
-
-                <div class="arrow-right hidden lg:flex">→</div>
-
-                <div class="bg-slate-800 p-3 rounded-xl border border-green-500/30 flex flex-col items-center step-card"
-                     id="mixColContainer"
-                     onclick="showCode('inv_mix_columns', this)">
-                    <h3 class="text-green-300 font-bold mb-2 text-xs">4. InvMixColumns</h3>
-                    <div id="mixColActive"><div id="grid-mix" class="grid grid-cols-4 gap-0.5"></div></div>
-                    <div id="mixColSkipped" class="hidden h-32 w-32 flex items-center justify-center border border-dashed border-slate-600 rounded text-slate-500 text-[10px]">SKIPPED</div>
-                </div>
-
-                <div class="arrow-right hidden lg:flex">→</div>
-
-                 <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center">
-                    <h3 class="text-slate-400 font-bold mb-2 text-xs">Result</h3>
-                    <div id="grid-out" class="grid grid-cols-4 gap-0.5"></div>
-                </div>
-
-            </div>
+            <p class="text-center text-slate-600 text-xs md:hidden">👆 좌우로 스크롤하여 전체 과정을 확인하세요</p>
         </div>
 
-        <div class="col-span-12 lg:col-span-4 h-full flex flex-col gap-4 sticky top-4">
+        <div class="col-span-1 lg:col-span-4 h-full flex flex-col gap-4 lg:sticky lg:top-4">
             
             <div class="bg-[#1e1e1e] rounded-xl shadow-xl overflow-hidden border border-slate-700 flex-1 flex flex-col min-h-[300px]">
                 <div class="bg-[#252526] px-4 py-2 text-xs font-bold text-slate-400 border-b border-[#3e3e42] flex items-center justify-between">
-                    <div class="flex items-center gap-2"><span class="text-purple-400">C Language</span><span id="codeTitle" class="text-white">aes_inv_cipher.c</span></div>
-                    <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded">Interactive View</span>
+                    <div class="flex items-center gap-2"><span class="text-purple-400">C Code</span><span id="codeTitle" class="text-white">aes_inv_cipher.c</span></div>
                 </div>
                 <div class="p-4 overflow-auto custom-scrollbar flex-1">
-                    <pre><code id="codeDisplay" class="font-mono text-[11px] md:text-xs leading-relaxed text-gray-300 whitespace-pre"></code></pre>
+                    <pre><code id="codeDisplay" class="font-mono text-[10px] md:text-xs leading-relaxed text-gray-300 whitespace-pre"></code></pre>
                 </div>
             </div>
 
             <div class="bg-slate-800 rounded-xl border border-yellow-500/50 p-4 shadow-lg shrink-0">
                 <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-yellow-300 font-bold text-sm flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
-                        Round Key (Reverse)
-                    </h3>
-                    <span class="text-[10px] bg-yellow-900/50 text-yellow-200 px-2 py-1 rounded mono">Using Round <span id="keyRoundDisp">10</span></span>
+                    <h3 class="text-yellow-300 font-bold text-sm">Round Key (Reverse)</h3>
+                    <span class="text-[10px] bg-yellow-900/50 text-yellow-200 px-2 py-1 rounded mono">Round <span id="keyRoundDisp">10</span></span>
                 </div>
                 
                 <p class="text-slate-400 text-[10px] mb-3 leading-relaxed">
-                    복호화는 키를 역순으로 사용합니다.<br>
                     Key Schedule: w[<span id="keyIndexStart">40</span>] ~ w[<span id="keyIndexEnd">43</span>]
                 </p>
 
                 <div class="flex justify-center">
-                    <div id="rightKeyGrid" class="grid grid-cols-4 gap-1">
-                        </div>
+                    <div id="rightKeyGrid" class="grid grid-cols-4 gap-1"></div>
                 </div>
             </div>
 
@@ -256,98 +220,16 @@
     </main>
 
     <script>
-        // --- 1. Source Code Snippets (Decryption) ---
+        // ... (Javascript Logic은 기존 파일과 100% 동일하므로 생략하지 않고 그대로 복사해 넣으세요) ...
+        /* [스크립트 시작] */
         const CODE_SNIPPETS = {
-            main: `
-<span class="c-key">void</span> <span class="c-func">aes_inv_cipher</span>(uint8_t *in, uint8_t *out, uint8_t *w) {
-    uint8_t state[4*Nb];
-    uint8_t r, i, j;
-
-    <span class="c-com">// 1단계: 입력 -> State 변환</span>
-    <span class="c-key">for</span> (i = 0; i < 4; i++) {
-        <span class="c-key">for</span> (j = 0; j < Nb; j++) {
-            state[Nb*i+j] = in[i+4*j];
-        }
-    }
-
-    <span class="c-com">// 2단계: 초기 라운드 키 추가 (마지막 라운드 키 사용)</span>
-<span id="line-add-round-key-0" class="code-line">    <span class="c-func">add_round_key</span>(state, w, Nr);</span>
-
-<span id="line-step-3" class="code-line">    <span class="c-com">// 3단계: 역 라운드 루프 (Nr-1 다운 카운트)</span></span>
-<span id="block-loop" class="code-line">    <span class="c-key">for</span> (r = Nr - 1; r >= 1; r--) {
-<span id="line-inv-shift" class="code-line">        <span class="c-func">inv_shift_rows</span>(state);</span>
-<span id="line-inv-sub" class="code-line">        <span class="c-func">inv_sub_bytes</span>(state);</span>
-<span id="line-add-round-key" class="code-line">        <span class="c-func">add_round_key</span>(state, w, r);</span>
-<span id="line-inv-mix" class="code-line">        <span class="c-func">inv_mix_columns</span>(state);</span>
-    }</span>
-
-    <span class="c-com">// 4단계: 마지막 라운드 (InvMixColumns 제외)</span>
-<span id="block-final" class="code-line"><span id="line-final-shift" class="code-line">    <span class="c-func">inv_shift_rows</span>(state);</span>
-<span id="line-final-sub" class="code-line">    <span class="c-func">inv_sub_bytes</span>(state);</span>
-<span id="line-final-key" class="code-line">    <span class="c-func">add_round_key</span>(state, w, 0);</span></span>
-
-    <span class="c-com">// 5단계: 출력 변환</span>
-    <span class="c-key">for</span> (i = 0; i < 4; i++) {
-        <span class="c-key">for</span> (j = 0; j < Nb; j++) {
-            out[i+4*j] = state[Nb*i+j];
-        }
-    }
-}`,
-            inv_sub_bytes: `
-<span class="c-key">void</span> <span class="c-func">inv_sub_bytes</span>(uint8_t *state) {
-    uint8_t i, j;
-    <span class="c-com">// 역 S-Box (inv_s_box)를 사용하여 치환</span>
-    <span class="c-key">for</span> (i = 0; i < 4; i++) {
-        <span class="c-key">for</span> (j = 0; j < Nb; j++) {
-            state[Nb*i+j] = inv_s_box[state[Nb*i+j]];
-        }
-    }
-}`,
-            inv_shift_rows: `
-<span class="c-key">void</span> <span class="c-func">inv_shift_rows</span>(uint8_t *state) {
-    uint8_t i, k, s, tmp;
-    <span class="c-com">// 오른쪽으로 순환 이동 (암호화의 반대)</span>
-    <span class="c-key">for</span> (i = 1; i < 4; i++) {
-        s = 0;
-        <span class="c-key">while</span> (s < i) {
-            tmp = state[Nb*i+Nb-1]; <span class="c-com">// 마지막 바이트 저장</span>
-            <span class="c-key">for</span> (k = Nb-1; k > 0; k--) {
-                state[Nb*i+k] = state[Nb*i+k-1];
-            }
-            state[Nb*i+0] = tmp;    <span class="c-com">// 앞으로 이동</span>
-            s++;
-        }
-    }
-}`,
-            inv_mix_columns: `
-<span class="c-key">void</span> <span class="c-func">inv_mix_columns</span>(uint8_t *state) {
-    <span class="c-com">// 복호화용 다항식: {0e}x^3 + {0b}x^2 + {0d}x + {09}</span>
-    uint8_t a[] = {0x0e, 0x0b, 0x0d, 0x09};
-    uint8_t i, j, col[4], res[4];
-
-    <span class="c-key">for</span> (j = 0; j < Nb; j++) {
-        <span class="c-key">for</span> (i = 0; i < 4; i++) col[i] = state[Nb*i+j];
-        
-        <span class="c-func">coef_mult</span>(a, col, res); <span class="c-com">// 곱셈 수행</span>
-        
-        <span class="c-key">for</span> (i = 0; i < 4; i++) state[Nb*i+j] = res[i];
-    }
-}`,
-            add_round_key: `
-<span class="c-key">void</span> <span class="c-func">add_round_key</span>(uint8_t *state, uint8_t *w, uint8_t r) {
-    uint8_t c;
-    <span class="c-com">// XOR 연산은 암호화와 동일 (A ^ B ^ B = A)</span>
-    <span class="c-key">for</span> (c = 0; c < Nb; c++) {
-        state[Nb*0+c] ^= w[4*Nb*r + 4*c + 0];
-        state[Nb*1+c] ^= w[4*Nb*r + 4*c + 1];
-        state[Nb*2+c] ^= w[4*Nb*r + 4*c + 2];
-        state[Nb*3+c] ^= w[4*Nb*r + 4*c + 3];
-    }
-}`
+            main: `<span class="c-key">void</span> <span class="c-func">aes_inv_cipher</span>(uint8_t *in, uint8_t *out, uint8_t *w) {\n    uint8_t state[4*Nb];\n    uint8_t r, i, j;\n\n    <span class="c-com">// 1단계: 입력 -> State 변환</span>\n    <span class="c-key">for</span> (i = 0; i < 4; i++) {\n        <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n            state[Nb*i+j] = in[i+4*j];\n        }\n    }\n\n    <span class="c-com">// 2단계: 초기 라운드 키 추가 (마지막 라운드 키 사용)</span>\n<span id="line-add-round-key-0" class="code-line">    <span class="c-func">add_round_key</span>(state, w, Nr);</span>\n\n<span id="line-step-3" class="code-line">    <span class="c-com">// 3단계: 역 라운드 루프 (Nr-1 다운 카운트)</span></span>\n<span id="block-loop" class="code-line">    <span class="c-key">for</span> (r = Nr - 1; r >= 1; r--) {\n<span id="line-inv-shift" class="code-line">        <span class="c-func">inv_shift_rows</span>(state);</span>\n<span id="line-inv-sub" class="code-line">        <span class="c-func">inv_sub_bytes</span>(state);</span>\n<span id="line-add-round-key" class="code-line">        <span class="c-func">add_round_key</span>(state, w, r);</span>\n<span id="line-inv-mix" class="code-line">        <span class="c-func">inv_mix_columns</span>(state);</span>\n    }</span>\n\n    <span class="c-com">// 4단계: 마지막 라운드 (InvMixColumns 제외)</span>\n<span id="block-final" class="code-line"><span id="line-final-shift" class="code-line">    <span class="c-func">inv_shift_rows</span>(state);</span>\n<span id="line-final-sub" class="code-line">    <span class="c-func">inv_sub_bytes</span>(state);</span>\n<span id="line-final-key" class="code-line">    <span class="c-func">add_round_key</span>(state, w, 0);</span></span>\n\n    <span class="c-com">// 5단계: 출력 변환</span>\n    <span class="c-key">for</span> (i = 0; i < 4; i++) {\n        <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n            out[i+4*j] = state[Nb*i+j];\n        }\n    }\n}`,
+            inv_sub_bytes: `<span class="c-key">void</span> <span class="c-func">inv_sub_bytes</span>(uint8_t *state) {\n    uint8_t i, j;\n    <span class="c-com">// 역 S-Box (inv_s_box)를 사용하여 치환</span>\n    <span class="c-key">for</span> (i = 0; i < 4; i++) {\n        <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n            state[Nb*i+j] = inv_s_box[state[Nb*i+j]];\n        }\n    }\n}`,
+            inv_shift_rows: `<span class="c-key">void</span> <span class="c-func">inv_shift_rows</span>(uint8_t *state) {\n    uint8_t i, k, s, tmp;\n    <span class="c-com">// 오른쪽으로 순환 이동 (암호화의 반대)</span>\n    <span class="c-key">for</span> (i = 1; i < 4; i++) {\n        s = 0;\n        <span class="c-key">while</span> (s < i) {\n            tmp = state[Nb*i+Nb-1]; <span class="c-com">// 마지막 바이트 저장</span>\n            <span class="c-key">for</span> (k = Nb-1; k > 0; k--) {\n                state[Nb*i+k] = state[Nb*i+k-1];\n            }\n            state[Nb*i+0] = tmp;    <span class="c-com">// 앞으로 이동</span>\n            s++;\n        }\n    }\n}`,
+            inv_mix_columns: `<span class="c-key">void</span> <span class="c-func">inv_mix_columns</span>(uint8_t *state) {\n    <span class="c-com">// 복호화용 다항식: {0e}x^3 + {0b}x^2 + {0d}x + {09}</span>\n    uint8_t a[] = {0x0e, 0x0b, 0x0d, 0x09};\n    uint8_t i, j, col[4], res[4];\n\n    <span class="c-key">for</span> (j = 0; j < Nb; j++) {\n        <span class="c-key">for</span> (i = 0; i < 4; i++) col[i] = state[Nb*i+j];\n        \n        <span class="c-func">coef_mult</span>(a, col, res); <span class="c-com">// 곱셈 수행</span>\n        \n        <span class="c-key">for</span> (i = 0; i < 4; i++) state[Nb*i+j] = res[i];\n    }\n}`,
+            add_round_key: `<span class="c-key">void</span> <span class="c-func">add_round_key</span>(uint8_t *state, uint8_t *w, uint8_t r) {\n    uint8_t c;\n    <span class="c-com">// XOR 연산은 암호화와 동일 (A ^ B ^ B = A)</span>\n    <span class="c-key">for</span> (c = 0; c < Nb; c++) {\n        state[Nb*0+c] ^= w[4*Nb*r + 4*c + 0];\n        state[Nb*1+c] ^= w[4*Nb*r + 4*c + 1];\n        state[Nb*2+c] ^= w[4*Nb*r + 4*c + 2];\n        state[Nb*3+c] ^= w[4*Nb*r + 4*c + 3];\n    }\n}`
         };
 
-        // --- 2. AES Logic (Decryption) ---
-        // S-Box and Rcon are same, need Inv S-Box
         const SBOX = [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, 0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15, 0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75, 0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84, 0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf, 0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8, 0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2, 0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73, 0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb, 0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79, 0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08, 0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a, 0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e, 0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16];
         const INV_SBOX = [0x52,0x09,0x6a,0xd5,0x30,0x36,0xa5,0x38,0xbf,0x40,0xa3,0x9e,0x81,0xf3,0xd7,0xfb,0x7c,0xe3,0x39,0x82,0x9b,0x2f,0xff,0x87,0x34,0x8e,0x43,0x44,0xc4,0xde,0xe9,0xcb,0x54,0x7b,0x94,0x32,0xa6,0xc2,0x23,0x3d,0xee,0x4c,0x95,0x0b,0x42,0xfa,0xc3,0x4e,0x08,0x2e,0xa1,0x66,0x28,0xd9,0x24,0xb2,0x76,0x5b,0xa2,0x49,0x6d,0x8b,0xd1,0x25,0x72,0xf8,0xf6,0x64,0x86,0x68,0x98,0x16,0xd4,0xa4,0x5c,0xcc,0x5d,0x65,0xb6,0x92,0x6c,0x70,0x48,0x50,0xfd,0xed,0xb9,0xda,0x5e,0x15,0x46,0x57,0xa7,0x8d,0x9d,0x84,0x90,0xd8,0xab,0x00,0x8c,0xbc,0xd3,0x0a,0xf7,0xe4,0x58,0x05,0xb8,0xb3,0x45,0x06,0xd0,0x2c,0x1e,0x8f,0xca,0x3f,0x0f,0x02,0xc1,0xaf,0xbd,0x03,0x01,0x13,0x8a,0x6b,0x3a,0x91,0x11,0x41,0x4f,0x67,0xdc,0xea,0x97,0xf2,0xcf,0xce,0xf0,0xb4,0xe6,0x73,0x96,0xac,0x74,0x22,0xe7,0xad,0x35,0x85,0xe2,0xf9,0x37,0xe8,0x1c,0x75,0xdf,0x6e,0x47,0xf1,0x1a,0x71,0x1d,0x29,0xc5,0x89,0x6f,0xb7,0x62,0x0e,0xaa,0x18,0xbe,0x1b,0xfc,0x56,0x3e,0x4b,0xc6,0xd2,0x79,0x20,0x9a,0xdb,0xc0,0xfe,0x78,0xcd,0x5a,0xf4,0x1f,0xdd,0xa8,0x33,0x88,0x07,0xc7,0x31,0xb1,0x12,0x10,0x59,0x27,0x80,0xec,0x5f,0x60,0x51,0x7f,0xa9,0x19,0xb5,0x4a,0x0d,0x2d,0xe5,0x7a,0x9f,0x93,0xc9,0x9c,0xef,0xa0,0xe0,0x3b,0x4d,0xae,0x2a,0xf5,0xb0,0xc8,0xeb,0xbb,0x3c,0x83,0x53,0x99,0x61,0x17,0x2b,0x04,0x7e,0xba,0x77,0xd6,0x26,0xe1,0x69,0x14,0x63,0x55,0x21,0x0c,0x7d];
         const RCON = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
@@ -367,17 +249,13 @@
         function toHex(val) { return val.toString(16).toUpperCase().padStart(2, '0'); }
         function fromHex(str) { return str.match(/.{1,2}/g).map(byte => parseInt(byte, 16)); }
         
-        // --- Decryption Steps ---
         function invSubBytes(state) { return state.map(b => INV_SBOX[b]); }
         
         function invShiftRows(s) {
             let out = [...s];
-            // Row 1: Shift Right 1
             let temp = out[13]; out[13] = out[9]; out[9] = out[5]; out[5] = out[1]; out[1] = temp;
-            // Row 2: Shift Right 2
             temp = out[2]; out[2] = out[10]; out[10] = temp;
             temp = out[6]; out[6] = out[14]; out[14] = temp;
-            // Row 3: Shift Right 3 (Left 1)
             temp = out[3]; out[3] = out[7]; out[7] = out[11]; out[11] = out[15]; out[15] = temp;
             return out;
         }
@@ -387,7 +265,6 @@
             for (let c = 0; c < 4; c++) { 
                 let start = c * 4;
                 let s0 = s[start], s1 = s[start+1], s2 = s[start+2], s3 = s[start+3];
-                // 0e 0b 0d 09
                 out[start]   = gmult(s0, 0x0e) ^ gmult(s1, 0x0b) ^ gmult(s2, 0x0d) ^ gmult(s3, 0x09);
                 out[start+1] = gmult(s0, 0x09) ^ gmult(s1, 0x0e) ^ gmult(s2, 0x0b) ^ gmult(s3, 0x0d);
                 out[start+2] = gmult(s0, 0x0d) ^ gmult(s1, 0x09) ^ gmult(s2, 0x0e) ^ gmult(s3, 0x0b);
@@ -417,8 +294,6 @@
         let expandedKeys = [];
         let currentRound = 1;
 
-        // --- UI Functions ---
-
         function showCode(type, element) {
             const display = document.getElementById('codeDisplay');
             const title = document.getElementById('codeTitle');
@@ -435,9 +310,9 @@
             else title.innerText = type + '.c (Detail)';
 
             if (element && element.id === 'round0Panel') {
-                updateKeyPanel(10); // Round 0 of Decryption uses Key Round 10
+                updateKeyPanel(10); 
             } else {
-                updateKeyPanel(); // Updates based on current Decryption Round
+                updateKeyPanel(); 
             }
         }
 
@@ -459,18 +334,11 @@
         }
 
         function updateKeyPanel(specificRound = null) {
-            // Decryption Round r uses Encryption Key (10 - r)
-            // But we display "Decryption Round" in controls.
-            // Control Round 1 = Key 9.
-            // Control Round 10 (Final) = Key 0.
-            
             let encKeyRound;
             
             if (specificRound !== null) {
-                // If specific round is passed (like Round 0 click -> uses Key 10)
                 encKeyRound = specificRound; 
             } else {
-                // Mapping: DecRound 1 -> Key 9, DecRound 2 -> Key 8 ... DecRound 10 -> Key 0
                 encKeyRound = 10 - currentRound;
             }
             
@@ -522,12 +390,6 @@
         }
 
         function calculateDecryptionRound(startState, round) {
-            // Decryption Round Logic:
-            // 1. InvShiftRows
-            // 2. InvSubBytes
-            // 3. AddRoundKey (Key = 10 - round)
-            // 4. InvMixColumns (Skip if round 10)
-            
             const keyRound = 10 - round;
             const keyStart = keyRound * 4;
             const roundKeyWords = expandedKeys.slice(keyStart, keyStart+4);
@@ -539,7 +401,7 @@
             
             let afterMix;
             if (round < 10) afterMix = invMixColumns(afterAdd);
-            else afterMix = [...afterAdd]; // Final round skips mix
+            else afterMix = [...afterAdd];
 
             return { start: startState, shift: afterShift, sub: afterSub, add: afterAdd, mix: afterMix, out: afterMix, key: roundKey };
         }
@@ -560,7 +422,6 @@
             const round0Panel = document.getElementById('round0Panel');
             if (currentRound === 1) {
                 round0Panel.classList.remove('hidden');
-                // Pre-Round Calculation: Input ^ Key[10]
                 const cipherText = [...currentState];
                 const key10Words = expandedKeys.slice(40, 44);
                 const key10 = key10Words.flat();
@@ -576,19 +437,15 @@
             showCode('main', document.getElementById('startCard'));
             updateKeyPanel();
 
-            // Run Simulation Loop
             let state = [...currentState]; 
-            // 1. Initial Key Addition (Key 10)
             const key10Words = expandedKeys.slice(40, 44);
             state = addRoundKey(state, key10Words.flat());
 
-            // 2. Loop Rounds
             for(let r=1; r < currentRound; r++) {
                  const res = calculateDecryptionRound(state, r);
                  state = res.out;
             }
 
-            // 3. Current Round
             const roundData = calculateDecryptionRound(state, currentRound);
             
             renderGrid('grid-start', roundData.start, 'text-slate-300 bg-slate-700/50');
@@ -622,6 +479,7 @@
         }
 
         window.onload = resetSimulation;
+        /* [스크립트 끝] */
     </script>
 </body>
 </html>
