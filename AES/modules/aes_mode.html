@@ -62,12 +62,10 @@
             display: flex; 
             gap: 60px; 
             justify-content: center; 
-            /* [수정] 스크롤 시 잘리지 않게 패딩 넉넉히 */
-            padding: 40px 60px; 
+            padding: 40px 20px; 
             position: relative; 
             min-height: 500px;
-            /* 중요: 내용물만큼 너비 확보 (찌그러짐 방지) */
-            min-width: max-content; 
+            width: 100%; /* 부모에 맞춤 */
         }
         @media (min-width: 768px) {
             .mode-container { gap: 100px; }
@@ -117,11 +115,12 @@
         </p>
     </div>
 
-    <div class="max-w-6xl w-full px-2 md:px-0">
+    <div class="w-full px-2 md:px-0 flex justify-center">
         
-        <div class="bg-slate-800/50 rounded-xl border border-slate-700 mt-4 relative overflow-x-auto custom-scrollbar">
+        <div class="w-full max-w-6xl bg-slate-800/50 rounded-xl border border-slate-700 mt-4 overflow-x-auto custom-scrollbar">
             
-            <div class="relative min-w-max" id="diagram-area">
+            <div class="relative min-w-[800px] mx-auto" id="diagram-area">
+                
                 <svg id="svg-layer">
                     <defs>
                         <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#64748b"/></marker>
@@ -134,8 +133,8 @@
             </div>
 
         </div>
-        <p class="text-center text-slate-500 text-xs mt-3 md:hidden">👆 표를 좌우로 밀어서 전체 구조를 확인하세요</p>
     </div>
+    <p class="text-center text-slate-500 text-xs mt-3 md:hidden">👆 표를 좌우로 밀어서 전체 구조를 확인하세요</p>
 
     <script>
         const AES_ENGINE_HTML = `
@@ -259,7 +258,7 @@
             const conns = MODES[currentMode].connections;
             if (!conns) return;
 
-            // [중요] 스크롤되는 컨텐츠 내부(diagram-area)를 기준으로 좌표 계산
+            // [중요] 스크롤되는 내부 영역 기준
             const containerRect = document.getElementById('diagram-area').getBoundingClientRect();
 
             conns.forEach(c => {
