@@ -2,187 +2,359 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GF(2^8) Visualizer Aligned</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="assets/css/style.css"> <style>
-        /* 비트 스타일 (style.css 외 전용) */
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'sans-serif'; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+
+        /* Bit Styles */
+        /* [수정] justify-content: center -> flex-end (우측 정렬) */
         .bit-container { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
+        
         .bit {
-            width: 30px; height: 40px; display: flex; align-items: center; justify-content: center;
-            background: #1e293b; border: 1px solid #475569; font-weight: bold; border-radius: 4px; transition: all 0.3s;
+            width: 30px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            background: #1e293b; border: 1px solid #475569;
+            font-family: 'Roboto Mono', monospace; font-weight: bold;
+            border-radius: 4px; transition: all 0.3s; z-index: 10;
         }
         .bit.on { background: #3b82f6; color: white; border-color: #60a5fa; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
         .bit.target { border-color: #fbbf24; box-shadow: 0 0 10px #fbbf24; transform: scale(1.1); }
-        
-        /* 9th Bit */
-        .bit.overflow { border-color: #ef4444; color: #f87171; opacity: 0.3; margin-right: 12px; position: relative; }
-        .bit.overflow.active { opacity: 1; background: #ef4444; color: white; box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
-        .bit.overflow::after { content: ''; position: absolute; right: -14px; top: 50%; width: 12px; height: 2px; background: #475569; }
+
+        /* 9th Bit Special Style */
+        .bit.overflow {
+            border-color: #ef4444; color: #f87171; opacity: 0.3;
+            margin-right: 12px; /* Gap between 8th and 9th bit */
+            position: relative;
+        }
+        .bit.overflow.active {
+            opacity: 1; background: #ef4444; color: white;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+        }
+        .bit.overflow::after {
+            content: ''; position: absolute; right: -14px; top: 50%;
+            width: 12px; height: 2px; background: #475569;
+        }
 
         /* Code Highlight */
-        .code-line { padding: 2px 8px; border-radius: 4px; opacity: 0.4; transition: all 0.2s; border-left: 3px solid transparent; }
+        .code-line { padding: 4px 8px; border-radius: 4px; opacity: 0.4; transition: all 0.2s; border-left: 3px solid transparent; }
         .code-active { background: #1e293b; opacity: 1; color: #fbbf24; font-weight: bold; border-left-color: #fbbf24; }
         
-        /* Animation */
+        /* Poly Animation */
         .poly-row { opacity: 0; transform: translateY(20px); transition: all 0.5s; }
         .poly-active { opacity: 1; transform: translateY(0); }
-        .flow-container { height: 20px; margin-top: 5px; opacity: 0.2; transition: opacity 0.3s; display: flex; justify-content: flex-end; }
+
+        /* Flow Arrows */
+        /* [수정] display: flex; justify-content: flex-end; 추가 */
+        .flow-container { 
+            height: 20px; margin-top: 5px; opacity: 0.2; transition: opacity 0.3s; 
+            display: flex; justify-content: flex-end; 
+        }
         .flow-active { opacity: 1 !important; }
         .arrow-set { display: flex; gap: 15px; font-weight: bold; font-family: monospace; font-size: 1.2rem; margin-right: 10px; }
         
-        @keyframes flowLeft { 0% { transform: translateX(20px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(-20px); opacity: 0; } }
+        @keyframes flowLeft {
+            0% { transform: translateX(20px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(-20px); opacity: 0; }
+        }
         .animate-left .arrow-set span { animation: flowLeft 0.8s infinite linear; }
-        .animate-left .arrow-set span:nth-child(1) { animation-delay: 0.0s; } .animate-left .arrow-set span:nth-child(2) { animation-delay: 0.1s; } .animate-left .arrow-set span:nth-child(3) { animation-delay: 0.2s; } .animate-left .arrow-set span:nth-child(4) { animation-delay: 0.3s; } .animate-left .arrow-set span:nth-child(5) { animation-delay: 0.4s; }
+        .animate-left .arrow-set span:nth-child(1) { animation-delay: 0.0s; }
+        .animate-left .arrow-set span:nth-child(2) { animation-delay: 0.1s; }
+        .animate-left .arrow-set span:nth-child(3) { animation-delay: 0.2s; }
+        .animate-left .arrow-set span:nth-child(4) { animation-delay: 0.3s; }
+        .animate-left .arrow-set span:nth-child(5) { animation-delay: 0.4s; }
 
-        @keyframes flowRight { 0% { transform: translateX(-20px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateX(20px); opacity: 0; } }
+        @keyframes flowRight {
+            0% { transform: translateX(-20px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(20px); opacity: 0; }
+        }
         .animate-right .arrow-set span { animation: flowRight 0.8s infinite linear; }
-        .animate-right .arrow-set span:nth-child(5) { animation-delay: 0.0s; } .animate-right .arrow-set span:nth-child(4) { animation-delay: 0.1s; } .animate-right .arrow-set span:nth-child(3) { animation-delay: 0.2s; } .animate-right .arrow-set span:nth-child(2) { animation-delay: 0.3s; } .animate-right .arrow-set span:nth-child(1) { animation-delay: 0.4s; }
+        .animate-right .arrow-set span:nth-child(5) { animation-delay: 0.0s; }
+        .animate-right .arrow-set span:nth-child(4) { animation-delay: 0.1s; }
+        .animate-right .arrow-set span:nth-child(3) { animation-delay: 0.2s; }
+        .animate-right .arrow-set span:nth-child(2) { animation-delay: 0.3s; }
+        .animate-right .arrow-set span:nth-child(1) { animation-delay: 0.4s; }
+
     </style>
 </head>
-<body class="flex flex-col items-center">
-    
-    <a href="gf_field.html" class="home-btn"><span>🏠</span> Back</a>
-
-    <div class="text-center mb-8 mt-10 md:mt-0">
-        <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">GF(2⁸) Multiplication</h1>
-        <p class="text-slate-400 text-sm">9번째 비트(Overflow) 발생과 <span class="text-red-400 font-bold">0x11B 연산</span> 과정</p>
+<body class="flex flex-col items-center min-h-screen p-6">
+    <div class="fixed top-4 left-4 z-50">
+        <a href="gf_field.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
     </div>
 
-    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg mb-8 flex flex-col md:flex-row gap-4 items-center">
-        <div class="flex gap-4">
-            <div class="flex items-center gap-2 font-mono">
-                <span class="text-blue-400 font-bold">a=</span>
-                <input type="text" id="inputA" value="57" maxlength="2" class="w-12 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white outline-none focus:border-blue-500">
-            </div>
-            <div class="flex items-center gap-2 font-mono">
-                <span class="text-green-400 font-bold">b=</span>
-                <input type="text" id="inputB" value="83" maxlength="2" class="w-12 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white outline-none focus:border-green-500">
-            </div>
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">GF(2⁸) Multiplication Visualizer</h1>
+        <p class="text-slate-400 text-sm">소스 코드의 동작과 <span class="text-yellow-400">비트 이동 방향</span>을 확인하세요.</p>
+    </div>
+
+    <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg mb-8 flex gap-4 items-center">
+        <div class="flex items-center gap-2 font-mono">
+            <span class="text-blue-400 font-bold">uint8_t a =</span>
+            <input type="text" id="inputA" value="57" maxlength="2" class="w-12 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white outline-none focus:border-blue-500">
+            <span class="text-slate-500">;</span>
         </div>
-        <button onclick="startSimulation()" id="btnStart" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-bold shadow-lg transition w-full md:w-auto">Run Simulation ▶</button>
+        <div class="flex items-center gap-2 font-mono">
+            <span class="text-green-400 font-bold">uint8_t b =</span>
+            <input type="text" id="inputB" value="83" maxlength="2" class="w-12 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-center text-white outline-none focus:border-green-500">
+            <span class="text-slate-500">;</span>
+        </div>
+        <div class="h-8 w-px bg-slate-600 mx-2"></div>
+        <button onclick="startSimulation()" id="btnStart" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-bold shadow-lg transition">Run Simulation ▶</button>
     </div>
 
-    <div class="responsive-split">
+    <div class="flex flex-col lg:flex-row gap-8 w-full max-w-6xl items-start justify-center">
 
-        <div class="split-left bg-slate-900 border border-slate-700 rounded-xl p-4 font-mono text-xs md:text-sm shadow-xl relative">
-            <div class="flex justify-between items-center text-slate-500 mb-4 border-b border-slate-700 pb-2">
-                <span>Logic</span>
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 font-mono text-sm w-full lg:w-1/3 shadow-xl relative">
+            <div class="flex justify-between items-center text-xs text-slate-500 mb-4 border-b border-slate-700 pb-2">
+                <span>gmult(a, b) Logic</span>
                 <span id="loop-counter" class="text-blue-400 font-bold opacity-0 transition-opacity bg-blue-900/30 px-2 py-0.5 rounded">Loop: - / 8</span>
             </div>
+            
             <div id="code-0" class="code-line">uint8_t p = 0;</div>
             <div id="code-loop" class="code-line text-blue-300">for (i=0; i&lt;8; i++) {</div>
+            
             <div class="pl-4">
-                <div id="code-1" class="code-line">// 1. Add</div>
+                <div id="code-1" class="code-line">// 1. Add to product?</div>
                 <div id="code-2" class="code-line">if (b & 1) <span class="text-yellow-400">p ^= a;</span></div>
-                <div id="code-3" class="code-line mt-2">// 2. Check</div>
+                
+                <div id="code-3" class="code-line mt-2">// 2. Check Overflow & Shift</div>
                 <div id="code-4" class="code-line">hbs = a & 0x80;</div>
                 <div id="code-5" class="code-line">a &lt;&lt;= 1;</div>
-                <div id="code-6" class="code-line mt-2">// 3. Mod</div>
+                
+                <div id="code-6" class="code-line mt-2">// 3. Modular Reduction</div>
                 <div id="code-7" class="code-line">if (hbs) <span class="text-red-400">a ^= 0x1b;</span></div>
-                <div id="code-8" class="code-line mt-2">// 4. Next</div>
+                
+                <div id="code-8" class="code-line mt-2">// 4. Next bit</div>
                 <div id="code-9" class="code-line">b &gt;&gt;= 1;</div>
             </div>
             <div id="code-end" class="code-line">}</div>
         </div>
 
-        <div class="split-right flex flex-col gap-4">
+        <div class="flex-1 flex flex-col gap-6 w-full">
             
-            <div class="scroll-box relative">
-                <div class="scroll-content flex-col items-end"> <div class="text-xs font-bold text-slate-500 mb-2 w-full text-left">p (Result)</div>
-                    <div class="pr-8"><div id="bits-p" class="bit-container"></div></div>
-                    <div class="text-right text-xs text-slate-400 font-mono mt-2">Hex: <span id="val-p" class="text-white">0x00</span></div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-600 relative">
+                <div class="absolute top-2 left-2 text-xs font-bold text-slate-500">p (Result)</div>
+                <div class="mt-4 mb-2 pr-8">
+                    <div id="bits-p" class="bit-container"></div>
                 </div>
+                <div class="text-right text-xs text-slate-400 font-mono">Hex: <span id="val-p" class="text-white">0x00</span></div>
             </div>
 
-            <div class="scroll-box relative overflow-visible">
-                <div class="scroll-content flex-col items-end">
-                    <div class="text-xs font-bold text-blue-400 mb-2 w-full text-left">a (Shift Left)</div>
-                    
-                    <div class="relative pr-8">
-                        <div class="absolute -top-8 left-0 text-[10px] text-red-400 font-bold opacity-0 transition-opacity" id="hbs-text">Overflow!</div>
-                        <div class="bit-container z-10">
-                            <div id="bit-overflow" class="bit overflow">0</div>
-                            <div id="bits-a" class="bit-container"></div>
-                        </div>
-                    </div>
-                    
-                    <div id="flow-a" class="flow-container text-blue-500 pr-8 w-full"><div class="arrow-set"><span>◀</span><span>◀</span><span>◀</span><span>◀</span><span>◀</span></div></div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-600 relative overflow-visible">
+                <div class="absolute top-2 left-2 text-xs font-bold text-blue-400">a (Shift Left &lt;&lt;)</div>
+                
+                <div class="absolute -top-6 left-2 text-[10px] text-red-400 font-bold opacity-0 transition-opacity" id="hbs-text">Overflow! (x⁸)</div>
 
-                    <div id="poly-visual" class="poly-row flex justify-end mt-2 pr-8 w-full">
-                         <div class="text-xs text-red-400 font-bold mr-2 self-center">⊕ 0x11B</div>
-                         <div class="bit-container opacity-50">
-                             <div class="bit overflow active" style="opacity: 1 !important; margin-right: 12px;">1</div>
-                             <div class="bit">0</div><div class="bit">0</div><div class="bit">0</div>
-                             <div class="bit on bg-red-900 border-red-500">1</div><div class="bit on bg-red-900 border-red-500">1</div>
-                             <div class="bit">0</div><div class="bit on bg-red-900 border-red-500">1</div><div class="bit on bg-red-900 border-red-500">1</div>
-                         </div>
+                <div class="mt-6 mb-2 relative pr-8">
+                    <div class="bit-container z-10">
+                        <div id="bit-overflow" class="bit overflow">0</div>
+                        <div id="bits-a" class="bit-container"></div>
                     </div>
-                    <div class="text-right text-xs text-slate-400 font-mono mt-2">Hex: <span id="val-a" class="text-white">--</span></div>
                 </div>
+                
+                <div id="flow-a" class="flow-container text-blue-500 pr-8">
+                    <div class="arrow-set">
+                        <span>◀</span><span>◀</span><span>◀</span><span>◀</span><span>◀</span>
+                    </div>
+                </div>
+
+                <div id="poly-visual" class="poly-row flex justify-end mt-2 pr-8">
+                     <div class="text-xs text-red-400 font-bold mr-2 self-center">⊕ 0x11B</div>
+                     <div class="bit-container opacity-50">
+                         <div class="bit overflow active" style="opacity: 1 !important; margin-right: 12px;">1</div>
+                         <div class="bit">0</div><div class="bit">0</div><div class="bit">0</div>
+                         <div class="bit on bg-red-900 border-red-500">1</div>
+                         <div class="bit on bg-red-900 border-red-500">1</div>
+                         <div class="bit">0</div>
+                         <div class="bit on bg-red-900 border-red-500">1</div>
+                         <div class="bit on bg-red-900 border-red-500">1</div>
+                     </div>
+                </div>
+
+                <div class="text-right text-xs text-slate-400 font-mono mt-2">Hex: <span id="val-a" class="text-white">--</span></div>
             </div>
 
-            <div class="scroll-box relative">
-                <div class="scroll-content flex-col items-end">
-                    <div class="text-xs font-bold text-green-400 mb-2 w-full text-left">b (Shift Right)</div>
-                    <div class="pr-8"><div id="bits-b" class="bit-container"></div></div>
-                    <div id="flow-b" class="flow-container text-green-500 pr-8 w-full"><div class="arrow-set"><span>▶</span><span>▶</span><span>▶</span><span>▶</span><span>▶</span></div></div>
-                    <div class="absolute bottom-10 right-[60px] text-yellow-400 text-xl font-bold animate-bounce z-20">↑</div>
-                    <div class="text-right text-xs text-slate-400 font-mono mt-2">Hex: <span id="val-b" class="text-white">--</span></div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-600 relative">
+                <div class="absolute top-2 left-2 text-xs font-bold text-green-400">b (Shift Right &gt;&gt;)</div>
+                
+                <div class="mt-4 mb-2 pr-8">
+                    <div id="bits-b" class="bit-container"></div>
                 </div>
+
+                <div id="flow-b" class="flow-container text-green-500 pr-8">
+                    <div class="arrow-set">
+                        <span>▶</span><span>▶</span><span>▶</span><span>▶</span><span>▶</span>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-6 right-[45px] text-yellow-400 text-xl font-bold animate-bounce z-20">↑</div>
+                
+                <div class="text-right text-xs text-slate-400 font-mono mt-2">Hex: <span id="val-b" class="text-white">--</span></div>
             </div>
 
         </div>
     </div>
 
     <script>
-        let varA=0, varB=0, varP=0, overflowBit=0, isRunning=false;
-        function toHex(n){return '0x'+n.toString(16).toUpperCase().padStart(2,'0')}
-        function createBits(cid,val,h=-1){
-            const c=document.getElementById(cid); c.innerHTML='';
-            for(let i=7;i>=0;i--){
-                const b=(val>>i)&1, d=document.createElement('div');
-                d.className=`bit ${b?'on':''}`; if(i===h)d.classList.add('target');
-                d.innerText=b; c.appendChild(d);
-            }
-        }
-        function updateUI(a,b,p,ofBit=0){
-            createBits('bits-a',a); createBits('bits-b',b,0); createBits('bits-p',p);
-            document.getElementById('val-a').innerText=toHex(a);
-            document.getElementById('val-b').innerText=toHex(b);
-            document.getElementById('val-p').innerText=toHex(p);
-            const ofEl=document.getElementById('bit-overflow'), hbsText=document.getElementById('hbs-text');
-            ofEl.innerText=ofBit;
-            if(ofBit===1){ ofEl.classList.add('active'); hbsText.classList.remove('opacity-0'); }
-            else{ ofEl.classList.remove('active'); hbsText.classList.add('opacity-0'); }
-        }
-        function highlightCode(id){ document.querySelectorAll('.code-active').forEach(e=>e.classList.remove('code-active')); if(id)document.getElementById(id).classList.add('code-active'); }
-        function showPoly(s){ const e=document.getElementById('poly-visual'); s?e.classList.add('poly-active'):e.classList.remove('poly-active'); }
-        function triggerFlow(t){ const e=document.getElementById(`flow-${t}`); e.classList.add(t==='a'?'animate-left':'animate-right','flow-active'); setTimeout(()=>{e.classList.remove(t==='a'?'animate-left':'animate-right','flow-active')},800); }
-        const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+        // --- Logic Variables ---
+        let varA = 0, varB = 0, varP = 0;
+        let overflowBit = 0; // The phantom 9th bit
+        let isRunning = false;
 
-        async function startSimulation(){
-            if(isRunning)return; isRunning=true;
-            document.getElementById('btnStart').classList.add('opacity-50','cursor-not-allowed');
-            varA=parseInt(document.getElementById('inputA').value,16);
-            varB=parseInt(document.getElementById('inputB').value,16);
-            varP=0; overflowBit=0;
-            highlightCode('code-0'); updateUI(varA,varB,varP,overflowBit);
-            const lc=document.getElementById('loop-counter'); lc.classList.remove('opacity-0');
-            await sleep(500);
-            for(let i=0;i<8;i++){
-                lc.innerText=`Loop: ${i+1} / 8`; highlightCode('code-loop'); await sleep(300);
-                highlightCode('code-2');
-                if((varB&1)===1){ varP^=varA; updateUI(varA,varB,varP,overflowBit); document.getElementById('bits-p').classList.add('animate-pulse'); await sleep(800); document.getElementById('bits-p').classList.remove('animate-pulse'); } else await sleep(400);
-                highlightCode('code-4'); let hbs=(varA&0x80)!==0; await sleep(400);
-                highlightCode('code-5'); triggerFlow('a'); overflowBit=hbs?1:0; varA=(varA<<1)&0xFF; updateUI(varA,varB,varP,overflowBit); await sleep(800);
-                highlightCode('code-7');
-                if(overflowBit===1){ showPoly(true); await sleep(1500); overflowBit=0; varA^=0x1B; updateUI(varA,varB,varP,overflowBit); await sleep(1000); showPoly(false); } else await sleep(300);
-                highlightCode('code-9'); triggerFlow('b'); await sleep(400); varB>>=1; updateUI(varA,varB,varP,overflowBit); await sleep(500);
+        function toHex(n) { return '0x' + n.toString(16).toUpperCase().padStart(2,'0'); }
+
+        // --- Render Functions ---
+        function createBits(containerId, value, highlightIdx = -1) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for(let i=7; i>=0; i--) {
+                const bit = (value >> i) & 1;
+                const div = document.createElement('div');
+                div.className = `bit ${bit ? 'on' : ''}`;
+                if(i === highlightIdx) div.classList.add('target');
+                div.innerText = bit;
+                container.appendChild(div);
             }
-            highlightCode('code-end'); document.getElementById('btnStart').classList.remove('opacity-50','cursor-not-allowed');
-            lc.innerText="Done"; setTimeout(()=>{lc.classList.add('opacity-0')},2000);
-            isRunning=false; alert(`Calculation Complete!\nResult: ${toHex(varP)}`);
+        }
+
+        function updateUI(a, b, p, ofBit = 0) {
+            createBits('bits-a', a);
+            createBits('bits-b', b, 0); 
+            createBits('bits-p', p);
+            
+            document.getElementById('val-a').innerText = toHex(a);
+            document.getElementById('val-b').innerText = toHex(b);
+            document.getElementById('val-p').innerText = toHex(p);
+
+            // Update 9th Bit
+            const ofEl = document.getElementById('bit-overflow');
+            const hbsText = document.getElementById('hbs-text');
+            
+            ofEl.innerText = ofBit;
+            if(ofBit === 1) {
+                ofEl.classList.add('active');
+                hbsText.classList.remove('opacity-0');
+            } else {
+                ofEl.classList.remove('active');
+                hbsText.classList.add('opacity-0');
+            }
+        }
+
+        function highlightCode(lineId) {
+            document.querySelectorAll('.code-active').forEach(el => el.classList.remove('code-active'));
+            if(lineId) document.getElementById(lineId).classList.add('code-active');
+        }
+
+        function showPoly(show) {
+            const el = document.getElementById('poly-visual');
+            if(show) el.classList.add('poly-active');
+            else el.classList.remove('poly-active');
+        }
+
+        function triggerFlow(type) {
+            const el = document.getElementById(`flow-${type}`);
+            el.classList.add(type === 'a' ? 'animate-left' : 'animate-right');
+            el.classList.add('flow-active');
+            setTimeout(() => {
+                el.classList.remove(type === 'a' ? 'animate-left' : 'animate-right');
+                el.classList.remove('flow-active');
+            }, 800);
+        }
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        // --- Main Loop ---
+        async function startSimulation() {
+            if(isRunning) return;
+            isRunning = true;
+            document.getElementById('btnStart').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            varA = parseInt(document.getElementById('inputA').value, 16);
+            varB = parseInt(document.getElementById('inputB').value, 16);
+            varP = 0;
+            overflowBit = 0;
+
+            highlightCode('code-0');
+            updateUI(varA, varB, varP, overflowBit);
+            
+            const loopCounter = document.getElementById('loop-counter');
+            loopCounter.classList.remove('opacity-0');
+            
+            await sleep(500);
+
+            for(let i=0; i<8; i++) {
+                loopCounter.innerText = `Loop: ${i+1} / 8`;
+                highlightCode('code-loop');
+                await sleep(300);
+
+                // 1. Add (XOR)
+                highlightCode('code-2');
+                if ((varB & 1) === 1) {
+                    varP ^= varA;
+                    updateUI(varA, varB, varP, overflowBit);
+                    document.getElementById('bits-p').classList.add('animate-pulse');
+                    await sleep(800);
+                    document.getElementById('bits-p').classList.remove('animate-pulse');
+                } else {
+                    await sleep(400);
+                }
+
+                // 2. Check HBS
+                highlightCode('code-4');
+                let hbs = (varA & 0x80) !== 0;
+                await sleep(400);
+
+                // 3. Shift (Move bit to Overflow Box)
+                highlightCode('code-5');
+                triggerFlow('a');
+                
+                overflowBit = hbs ? 1 : 0;
+                varA = (varA << 1) & 0xFF; 
+                
+                updateUI(varA, varB, varP, overflowBit); 
+                await sleep(800);
+
+                // 4. Modulo (0x11B)
+                highlightCode('code-7');
+                if (overflowBit === 1) {
+                    showPoly(true);
+                    await sleep(1500); 
+
+                    // Logic: 0x11B XOR
+                    overflowBit = 0; 
+                    varA ^= 0x1B;
+                    
+                    updateUI(varA, varB, varP, overflowBit);
+                    await sleep(1000);
+                    
+                    showPoly(false);
+                } else {
+                    await sleep(300);
+                }
+
+                // 5. Next Bit
+                highlightCode('code-9');
+                triggerFlow('b');
+                await sleep(400);
+
+                varB >>= 1;
+                updateUI(varA, varB, varP, overflowBit);
+                await sleep(500);
+            }
+
+            highlightCode('code-end');
+            document.getElementById('btnStart').classList.remove('opacity-50', 'cursor-not-allowed');
+            loopCounter.innerText = "Done";
+            setTimeout(() => { loopCounter.classList.add('opacity-0'); }, 2000);
+            
+            isRunning = false;
+            alert(`Calculation Complete!\nResult: ${toHex(varP)}`);
         }
     </script>
 </body>
