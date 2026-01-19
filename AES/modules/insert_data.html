@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES 데이터 구조화 시각화 (AES Data Structuring Visualizer)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Marked Library for Markdown Parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #e2e8f0; /* Slate 200 */
+        }
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .cell {
+            transition: all 0.3s ease;
+        }
+        .cell:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+        /* Markdown Styles */
+        .prose strong { color: #93c5fd; }
+        .prose p { margin-bottom: 0.5em; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose ol { list-style-type: decimal; padding-left: 1.5em; margin-bottom: 1em; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-5xl w-full mb-8 text-center relative">
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">AES 데이터 구조화 시각화</h1>
+        <p class="text-slate-400 text-sm md:text-base">입력 데이터가 어떻게 패딩(PKCS#7)되고 4x4 상태 행렬(State Matrix)로 변환되는지 확인하세요.</p>
+    </header>
+
+    <main class="max-w-5xl w-full space-y-8">
+
+        <!-- AI Assistant Section -->
+        <section class="bg-gradient-to-r from-indigo-900 to-slate-800 rounded-xl p-6 shadow-lg border border-indigo-700 relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-indigo-500 rounded-full opacity-20 blur-xl"></div>
+            
+            <h2 class="text-xl font-semibold text-white mb-4 flex items-center relative z-10 justify-between">
+                <div class="flex items-center">
+                    <span class="text-2xl mr-2">✨</span> 
+                    Gemini AI 어시스턴트
+                </div>
+                <!-- Model Status Indicator -->
+                <div id="modelStatus" class="text-xs font-normal bg-black/30 px-3 py-1 rounded-full text-slate-400 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+                    모델 탐색 중...
+                </div>
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                <!-- Tool 1: Natural Language to Hex -->
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-indigo-500/30 hover:border-indigo-400/50 transition duration-300">
+                    <h3 class="text-indigo-300 font-bold mb-2 text-sm">AI 데이터 생성기</h3>
+                    <p class="text-slate-400 text-xs mb-3">자연어로 요청하면 Hex 코드로 변환해줍니다.</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="aiPrompt" 
+                            class="flex-1 bg-slate-800 border border-slate-600 text-white px-3 py-2 rounded text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-500"
+                            placeholder="예: 'Hello World'를 Hex로 변환해줘">
+                        <button onclick="generateHexWithAI()" 
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-2 rounded transition whitespace-nowrap flex items-center gap-1 shadow-md">
+                            생성 ✨
+                            <span id="aiLoading" class="hidden animate-spin ml-1">⌛</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tool 2: Explain Logic -->
+                <div class="bg-slate-900/50 p-4 rounded-lg border border-indigo-500/30 hover:border-indigo-400/50 transition duration-300">
+                    <h3 class="text-indigo-300 font-bold mb-2 text-sm">AI 패딩 분석기</h3>
+                    <p class="text-slate-400 text-xs mb-3">현재 적용된 패딩 로직을 AI가 알기 쉽게 설명해줍니다.</p>
+                    <button onclick="explainPaddingWithAI()" 
+                        class="w-full bg-slate-700 hover:bg-slate-600 text-indigo-200 text-sm font-bold py-2 px-4 rounded border border-slate-600 transition flex items-center justify-center gap-2 shadow-md">
+                        현재 로직 설명 듣기 ✨
+                        <span id="explainLoading" class="hidden animate-spin">⌛</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- AI Response Area -->
+            <div id="aiResponseContainer" class="hidden mt-4 bg-indigo-950/50 border border-indigo-500/30 rounded-lg p-4 animate-fade-in">
+                <h4 class="text-indigo-300 text-xs font-bold uppercase mb-2">Gemini의 답변:</h4>
+                <div id="aiResponseText" class="text-slate-200 text-sm leading-relaxed prose prose-invert max-w-none"></div>
+            </div>
+        </section>
+
+        <!-- 1. Input Section -->
+        <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+            <h2 class="text-xl font-semibold text-white mb-4 flex items-center">
+                <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded mr-2">Step 1</span>
+                데이터 입력 (Hex String)
+            </h2>
+            
+            <div class="space-y-4">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <input type="text" id="hexInput" 
+                        class="flex-1 bg-slate-900 border border-slate-600 text-white p-3 rounded mono focus:outline-none focus:border-blue-500 uppercase placeholder-slate-500"
+                        placeholder="예: 00 11 22 ... (띄어쓰기 없이 입력 가능)"
+                        value="00112233445566778899AABBCCDD">
+                    <button onclick="processData()" 
+                        class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded transition shadow-md whitespace-nowrap">
+                        변환 실행
+                    </button>
+                </div>
+
+                <!-- Presets -->
+                <div class="flex flex-wrap gap-2 text-sm">
+                    <span class="text-slate-400 self-center mr-2">예제 선택:</span>
+                    <button onclick="setPreset('15')" class="bg-slate-700 hover:bg-slate-600 text-blue-200 px-3 py-1 rounded border border-slate-600 transition">
+                        15바이트 (1바이트 패딩)
+                    </button>
+                    <button onclick="setPreset('16')" class="bg-slate-700 hover:bg-slate-600 text-yellow-200 px-3 py-1 rounded border border-slate-600 transition">
+                        16바이트 (새 블록 패딩)
+                    </button>
+                    <button onclick="setPreset('20')" class="bg-slate-700 hover:bg-slate-600 text-green-200 px-3 py-1 rounded border border-slate-600 transition">
+                        20바이트 (12바이트 패딩)
+                    </button>
+                </div>
+                <div id="inputInfo" class="text-slate-400 text-xs mono mt-1">
+                    현재 길이: 14 바이트
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Padding Result -->
+        <section id="paddingSection" class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700 hidden">
+            <h2 class="text-xl font-semibold text-white mb-4 flex items-center">
+                <span class="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded mr-2">Step 2</span>
+                패딩 적용 결과 (PKCS#7)
+            </h2>
+            <div class="p-4 bg-slate-900 rounded border border-slate-700 overflow-x-auto">
+                <div id="paddedStream" class="flex flex-wrap gap-1 mono text-sm md:text-base">
+                    <!-- Javascript will populate this -->
+                </div>
+            </div>
+            <p class="text-slate-400 text-sm mt-3">
+                <span class="inline-block w-3 h-3 bg-blue-500/20 border border-blue-500 rounded-full mr-1 align-middle"></span> 원본 데이터
+                <span class="ml-4 inline-block w-3 h-3 bg-red-500/20 border border-red-500 rounded-full mr-1 align-middle"></span> 패딩 (값 = 패딩 바이트 수)
+            </p>
+        </section>
+
+        <!-- 3. State Matrix View -->
+        <section id="matrixSection" class="hidden">
+            <h2 class="text-xl font-semibold text-white mb-4 flex items-center">
+                <span class="bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded mr-2">Step 3</span>
+                상태 행렬 변환 (Column-Major Order)
+            </h2>
+            <div id="blocksContainer" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Javascript will populate blocks here -->
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Preset Data
+        const presets = {
+            '15': '000102030405060708090A0B0C0D0E', // 15 bytes
+            '16': '00112233445566778899AABBCCDDEEFF', // 16 bytes
+            '20': '00112233445566778899AABBCCDDEEFF11223344' // 20 bytes
+        };
+
+        // --- GEMINI API INTEGRATION ---
+        
+        const GEMINI_API_KEY = "AIzaSyD3DS2f2vT0-S8SdO4WRVplZ7WoRbCaU-4";
+        let SELECTED_MODEL = 'gemini-1.5-flash'; // Default fallback
+
+        // 1. 초기화: 사용 가능한 모델 목록 조회 (User Suggestion Applied)
+        async function fetchAvailableModels() {
+            const statusEl = document.getElementById('modelStatus');
+            try {
+                // Gemini API의 models.list 엔드포인트 호출
+                const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.models) throw new Error("모델 목록을 불러올 수 없습니다.");
+
+                // 'generateContent'를 지원하는 모델만 필터링
+                const capableModels = data.models.filter(m => 
+                    m.supportedGenerationMethods && 
+                    m.supportedGenerationMethods.includes("generateContent")
+                );
+
+                // 우선순위 로직: 1.5-flash -> 1.5-pro -> 1.0-pro -> 아무거나
+                // 모델 이름(name)은 보통 'models/gemini-1.5-flash' 형태입니다.
+                let bestModel = capableModels.find(m => m.name.includes("gemini-1.5-flash"));
+                if (!bestModel) bestModel = capableModels.find(m => m.name.includes("gemini-1.5-pro"));
+                if (!bestModel) bestModel = capableModels.find(m => m.name.includes("gemini-1.0-pro"));
+                if (!bestModel && capableModels.length > 0) bestModel = capableModels[0];
+
+                if (bestModel) {
+                    // 'models/' 접두사 제거 (API 호출 시 필요할 수도 있고 아닐 수도 있지만, 보통 안전하게 전체 이름을 쓰거나 id만 씁니다)
+                    // 여기서는 모델 이름 전체(models/...)를 사용하거나 id만 추출합니다.
+                    // API 호출 시에는 'models/gemini-...' 형태가 안전합니다.
+                    SELECTED_MODEL = bestModel.name.replace("models/", "");
+                    
+                    statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500"></span> 연결됨: ${SELECTED_MODEL}`;
+                    console.log(`Selected Model: ${SELECTED_MODEL}`);
+                } else {
+                    throw new Error("사용 가능한 텍스트 생성 모델이 없습니다.");
+                }
+
+            } catch (error) {
+                console.error("Model Discovery Failed:", error);
+                // 실패 시 기본값 유지 + 에러 표시
+                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> 연결 실패 (기본값 사용)`;
+            }
+        }
+
+        // 페이지 로드 시 모델 탐색 시작
+        window.addEventListener('DOMContentLoaded', fetchAvailableModels);
+
+
+        async function callGemini(prompt, systemPrompt = "") {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${SELECTED_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${data.error?.message || response.status}`);
+                }
+                
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || "응답을 생성할 수 없습니다.";
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                return `오류가 발생했습니다: ${error.message}.`;
+            }
+        }
+
+        async function generateHexWithAI() {
+            const userPrompt = document.getElementById('aiPrompt').value.trim();
+            if (!userPrompt) {
+                alert("변환할 내용을 입력해주세요.");
+                return;
+            }
+
+            const loading = document.getElementById('aiLoading');
+            const responseContainer = document.getElementById('aiResponseContainer');
+            const responseText = document.getElementById('aiResponseText');
+
+            loading.classList.remove('hidden');
+            responseContainer.classList.add('hidden');
+
+            const systemPrompt = "You are a cryptographic helper tool. Convert the user's natural language request into a continuous Hexadecimal string (no spaces) suitable for AES input. If the user provides ASCII text, convert it to Hex. If they ask for random bytes, generate them. Return ONLY the hex string, without any markdown formatting or explanation. If the request is invalid, explain why briefly.";
+            
+            const result = await callGemini(userPrompt, systemPrompt);
+            
+            // Clean up result (remove markdown code blocks if any)
+            const cleanHex = result.replace(/```/g, '').replace(/hex/g, '').trim();
+
+            responseContainer.classList.remove('hidden');
+
+            if (/^[0-9A-Fa-f]+$/.test(cleanHex)) {
+                document.getElementById('hexInput').value = cleanHex;
+                processData(); // Run visualization
+                
+                responseText.innerHTML = `<span class="text-green-400">성공!</span> 입력하신 요청 "<strong>${userPrompt}</strong>"에 대해 다음 Hex 코드를 생성했습니다:<br><code class="bg-black/30 px-2 py-1 rounded text-xs mt-2 block break-all text-white font-mono">${cleanHex}</code>`;
+            } else {
+                responseText.innerText = result; // Show error message or explanation from AI
+            }
+
+            loading.classList.add('hidden');
+        }
+
+        async function explainPaddingWithAI() {
+            const hexInput = document.getElementById('hexInput').value;
+            const loading = document.getElementById('explainLoading');
+            const responseContainer = document.getElementById('aiResponseContainer');
+            const responseText = document.getElementById('aiResponseText');
+
+            loading.classList.remove('hidden');
+            responseContainer.classList.add('hidden');
+
+            const rawLen = hexInput.length / 2;
+            const blockSize = 16;
+            const paddingNeeded = blockSize - (rawLen % blockSize);
+            const paddingVal = paddingNeeded.toString(16).toUpperCase().padStart(2, '0');
+
+            const prompt = `
+                Analyze the following PKCS#7 padding scenario for AES-128:
+                - Input Hex: ${hexInput.substring(0, 30)}... (Total ${rawLen} bytes)
+                - Block Size: 16 bytes
+                
+                Explain in Korean why the padding length is ${paddingNeeded} bytes and why the padding value is '0x${paddingVal}'.
+                Explain it simply for a student learning cryptography. Focus on the "why".
+                Use markdown for formatting.
+            `;
+
+            const result = await callGemini(prompt, "You are a cryptography tutor explaining PKCS#7 padding.");
+            
+            responseContainer.classList.remove('hidden');
+            responseText.innerHTML = marked.parse(result);
+            loading.classList.add('hidden');
+        }
+
+        // --- EXISTING LOGIC ---
+
+        function setPreset(key) {
+            document.getElementById('hexInput').value = presets[key];
+            processData();
+        }
+
+        function processData() {
+            const inputStr = document.getElementById('hexInput').value.replace(/\s+/g, '');
+            const inputInfo = document.getElementById('inputInfo');
+            
+            // Validation
+            if (!/^[0-9A-Fa-f]*$/.test(inputStr)) {
+                alert("유효한 16진수만 입력해주세요.");
+                return;
+            }
+            if (inputStr.length % 2 !== 0) {
+                alert("Hex 문자열의 길이는 짝수여야 합니다 (1바이트 = 2글자).");
+                return;
+            }
+
+            const rawBytes = [];
+            for (let i = 0; i < inputStr.length; i += 2) {
+                rawBytes.push(inputStr.substr(i, 2).toUpperCase());
+            }
+
+            inputInfo.textContent = `현재 길이: ${rawBytes.length} 바이트`;
+
+            // 1. Apply Padding (PKCS#7)
+            const blockSize = 16;
+            const paddingNeeded = blockSize - (rawBytes.length % blockSize);
+            // Even if rawBytes.length is multiple of 16, paddingNeeded becomes 16 (correct for PKCS#7)
+            
+            const paddingValueHex = paddingNeeded.toString(16).toUpperCase().padStart(2, '0');
+            const paddedBytes = [...rawBytes];
+            
+            for (let i = 0; i < paddingNeeded; i++) {
+                paddedBytes.push(paddingValueHex);
+            }
+
+            // Render Step 2: Linear Stream
+            renderPaddedStream(rawBytes.length, paddedBytes);
+
+            // Render Step 3: Matrix Blocks
+            renderMatrices(paddedBytes, rawBytes.length);
+        }
+
+        function renderPaddedStream(originalLength, paddedBytes) {
+            const container = document.getElementById('paddedStream');
+            container.innerHTML = '';
+            document.getElementById('paddingSection').classList.remove('hidden');
+
+            paddedBytes.forEach((byte, index) => {
+                const el = document.createElement('div');
+                const isPadding = index >= originalLength;
+                
+                el.className = `w-8 h-8 md:w-10 md:h-10 flex items-center justify-center border rounded 
+                    ${isPadding 
+                        ? 'bg-red-500/20 border-red-500 text-red-200' 
+                        : 'bg-blue-500/20 border-blue-500 text-blue-200'}
+                    ${index > 0 && index % 16 === 0 ? 'ml-4 border-l-2 border-yellow-500/50' : ''}`; // Visual separator for blocks
+                
+                el.innerText = byte;
+                
+                // Add tooltip-like title
+                el.title = isPadding ? `Index ${index}: 패딩 값` : `Index ${index}: 원본 데이터`;
+                
+                container.appendChild(el);
+            });
+        }
+
+        function renderMatrices(paddedBytes, originalLength) {
+            const container = document.getElementById('blocksContainer');
+            container.innerHTML = '';
+            document.getElementById('matrixSection').classList.remove('hidden');
+
+            const numBlocks = paddedBytes.length / 16;
+
+            for (let b = 0; b < numBlocks; b++) {
+                const blockBytes = paddedBytes.slice(b * 16, (b + 1) * 16);
+                
+                // Block Container
+                const blockDiv = document.createElement('div');
+                blockDiv.className = 'bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg flex flex-col items-center';
+                
+                // Title
+                const title = document.createElement('h3');
+                title.className = 'text-lg font-bold text-white mb-4';
+                title.innerText = `Block ${b + 1}`;
+                blockDiv.appendChild(title);
+
+                // Grid
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-4 gap-2';
+
+                // Create 4x4 cells (Col-Major Order)
+                for (let row = 0; row < 4; row++) {
+                    for (let col = 0; col < 4; col++) {
+                        const byteIndex = row + (col * 4); // Logic for Column-Major
+                        const byteVal = blockBytes[byteIndex];
+                        const globalIndex = (b * 16) + byteIndex;
+                        const isPadding = globalIndex >= originalLength;
+
+                        const cell = document.createElement('div');
+                        cell.className = `cell w-12 h-12 md:w-14 md:h-14 flex flex-col items-center justify-center rounded border 
+                            ${isPadding 
+                                ? 'bg-red-500/20 border-red-500 text-red-200' 
+                                : 'bg-blue-500/20 border-blue-500 text-blue-200'}`;
+                        
+                        cell.innerHTML = `
+                            <span class="text-sm md:text-base font-bold mono">${byteVal}</span>
+                            <span class="text-[0.6rem] opacity-50">s[${row},${col}]</span>
+                        `;
+                        grid.appendChild(cell);
+                    }
+                }
+
+                blockDiv.appendChild(grid);
+                
+                // Description
+                const desc = document.createElement('p');
+                desc.className = 'text-slate-400 text-xs mt-4 text-center';
+                desc.innerHTML = `
+                    <span class="text-blue-400">세로 방향(↓)</span>으로 먼저 채워집니다.<br>
+                    input[${b*16}] ~ input[${b*16 + 3}] -> 1열
+                `;
+                blockDiv.appendChild(desc);
+
+                container.appendChild(blockDiv);
+            }
+        }
+
+        // Initialize with default
+        processData();
+
+    </script>
+</body>
+</html>

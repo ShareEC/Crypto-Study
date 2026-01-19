@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES 암호화 라운드 & 상세 코드 뷰어 (Key Control Added)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Grid Cell Styles */
+        .state-cell {
+            width: 2rem; height: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #334155;
+            font-size: 0.7rem; font-weight: bold; font-family: 'Roboto Mono', monospace;
+            transition: all 0.3s ease;
+        }
+        
+        /* Key Cell Style */
+        .key-cell {
+            width: 2rem; height: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #7c3aed; /* Purple border */
+            background-color: #2e1065; /* Dark Purple bg */
+            color: #d8b4fe; /* Light Purple text */
+            font-size: 0.7rem; font-weight: bold; font-family: 'Roboto Mono', monospace;
+        }
+
+        /* Phase Colors */
+        .phase-sub { background-color: #1e293b; color: #93c5fd; }
+        .phase-shift { background-color: #1e293b; color: #fcd34d; }
+        .phase-mix { background-color: #1e293b; color: #86efac; }
+        .phase-key { background-color: #1e293b; color: #c4b5fd; }
+        .phase-init { background-color: #1e293b; color: #f472b6; border-color: #be185d; }
+        
+        .arrow-right {
+            display: flex; align-items: center; justify-content: center;
+            color: #475569; font-size: 1.2rem;
+        }
+
+        .operator { font-size: 1.5rem; font-weight: bold; color: #94a3b8; display: flex; align-items: center; justify-content: center;}
+
+        /* Code Syntax Highlighting */
+        .c-key { color: #c678dd; font-weight: bold; }
+        .c-type { color: #e5c07b; }
+        .c-func { color: #61afef; }
+        .c-var { color: #e06c75; }
+        .c-num { color: #d19a66; }
+        .c-com { color: #7f848e; font-style: italic; }
+        .c-def { color: #d19a66; font-weight: bold; }
+        
+        /* Code Interactions */
+        .code-line { display: block; padding: 0 4px; border-radius: 2px; transition: background-color 0.2s; border-left: 3px solid transparent; }
+        .code-active { background-color: #374151; color: #fbbf24; font-weight: bold; border-left-color: #fbbf24; } 
+        .code-hover { background-color: #1d4ed8; color: white; font-weight: bold; border-left-color: #60a5fa; }
+
+        @keyframes pulse-highlight {
+            0%, 100% { background-color: #374151; border-left-color: #fbbf24; color: #fbbf24; }
+            50% { background-color: transparent; border-left-color: transparent; color: #7f848e; }
+        }
+        .code-blink { animation: pulse-highlight 2s infinite; font-weight: bold; }
+
+        /* Card Styles */
+        .step-card { transition: all 0.2s; cursor: pointer; position: relative; }
+        .step-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); border-color: #94a3b8; z-index: 10; }
+        .step-card.active-card { border-color: #fbbf24; box-shadow: 0 0 15px rgba(251, 191, 36, 0.3); }
+        .step-card::after {
+            content: '클릭하여 코드 보기';
+            position: absolute; top: -12px; right: 10px;
+            background: #2563eb; color: white; font-size: 9px;
+            padding: 2px 6px; border-radius: 4px;
+            opacity: 0; transition: opacity 0.2s; pointer-events: none;
+        }
+        .step-card:hover::after { opacity: 1; }
+
+    </style>
+</head>
+<body class="p-4 min-h-screen flex flex-col items-center">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <div class="max-w-[1600px] w-full mb-4 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-green-400 flex items-center gap-2">
+                AES 암호화 라운드 & 소스 코드 연동
+                <span class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded font-normal">Final</span>
+            </h1>
+            <p class="text-slate-400 text-xs">
+                이제 <strong>Master Key</strong>를 직접 변경하여 Step 2의 결과와 비교할 수 있습니다.
+            </p>
+        </div>
+        <a href="AES 전체 흐름도.html" class="text-slate-500 hover:text-white text-xs font-bold flex items-center bg-slate-800 px-3 py-2 rounded border border-slate-700 transition">
+            전체 지도
+        </a>
+    </div>
+
+    <main class="max-w-[1600px] w-full grid grid-cols-12 gap-6">
+
+        <div class="col-span-12 lg:col-span-8 space-y-4">
+            
+            <section class="bg-slate-800 rounded-xl p-3 border border-slate-700 shadow-lg flex flex-col gap-3">
+                <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-600 flex items-center gap-3">
+                            <label class="text-xs text-slate-400 font-bold">ROUND</label>
+                            <button onclick="changeRound(-1)" class="text-slate-500 hover:text-white">◀</button>
+                            <span id="currentRoundDisplay" class="w-12 text-center text-xl font-bold text-white mono">1</span>
+                            <button onclick="changeRound(1)" class="text-slate-500 hover:text-white">▶</button>
+                        </div>
+                    </div>
+                    <button onclick="resetSimulation()" class="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-6 py-2 rounded shadow transition transform active:scale-95">
+                        설정 적용 및 재시작 ↻
+                    </button>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1">
+                        <div class="relative">
+                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-purple-400 text-[10px] font-bold">KEY</span>
+                            <input type="text" id="keyInput" 
+                                value="2B7E151628AED2A6ABF7158809CF4F3C" maxlength="32" oninput="validateHex(this)"
+                                class="pl-8 pr-2 py-1.5 bg-slate-900 border border-purple-500 rounded text-[10px] mono text-white w-full focus:outline-none focus:border-purple-400 uppercase tracking-widest"
+                                placeholder="Master Key (32 Hex)">
+                        </div>
+                        <div class="text-[9px] text-slate-500 text-right mt-1">* Step 2와 동일한 키를 입력하세요.</div>
+                    </div>
+
+                    <div class="flex-1">
+                        <div class="relative">
+                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 text-[10px] font-bold">DATA</span>
+                            <input type="text" id="stateInput" 
+                                value="3243F6A8885A308D313198A2E0370734" maxlength="32" oninput="validateHex(this)"
+                                class="pl-10 pr-2 py-1.5 bg-slate-900 border border-slate-500 rounded text-[10px] mono text-white w-full focus:outline-none focus:border-white uppercase tracking-widest"
+                                placeholder="Plaintext (32 Hex)">
+                        </div>
+                        <div class="text-[9px] text-slate-500 text-right mt-1">* 암호화할 평문 데이터입니다.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="round0Panel" 
+                     class="bg-pink-900/10 rounded-xl p-3 border border-pink-500/30 shadow-lg hidden step-card"
+                     onclick="showCode('add_round_key', this)">
+                <h3 class="text-sm font-bold text-pink-400 mb-2 flex items-center gap-2">
+                    <span class="bg-pink-500 text-white text-[10px] px-2 py-0.5 rounded">Round 0</span>
+                    Initial Key Addition
+                </h3>
+                <div class="flex items-center justify-center gap-2">
+                    <div id="r0-plain" class="grid grid-cols-4 gap-0.5"></div>
+                    <div class="operator">⊕</div>
+                    <div id="r0-key" class="grid grid-cols-4 gap-0.5 opacity-80"></div>
+                    <div class="operator">=</div>
+                    <div id="r0-result" class="grid grid-cols-4 gap-0.5 border border-pink-500/50 p-0.5 rounded"></div>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-2">
+                
+                <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center step-card active-card"
+                     id="startCard"
+                     onclick="showCode('main', this)">
+                    <h3 class="text-slate-300 font-bold mb-2 text-xs">Start State</h3>
+                    <div id="grid-start" class="grid grid-cols-4 gap-0.5"></div>
+                </div>
+
+                <div class="arrow-right hidden lg:flex">→</div>
+
+                <div class="bg-slate-800 p-3 rounded-xl border border-blue-500/30 flex flex-col items-center step-card"
+                     onclick="showCode('sub_bytes', this)">
+                    <h3 class="text-blue-300 font-bold mb-2 text-xs">1. SubBytes</h3>
+                    <div id="grid-sub" class="grid grid-cols-4 gap-0.5"></div>
+                </div>
+
+                <div class="arrow-right hidden lg:flex">→</div>
+
+                <div class="bg-slate-800 p-3 rounded-xl border border-yellow-500/30 flex flex-col items-center step-card"
+                     onclick="showCode('shift_rows', this)">
+                    <h3 class="text-yellow-300 font-bold mb-2 text-xs">2. ShiftRows</h3>
+                    <div id="grid-shift" class="grid grid-cols-4 gap-0.5"></div>
+                </div>
+
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-2">
+
+                <div class="bg-slate-800 p-3 rounded-xl border border-green-500/30 flex flex-col items-center step-card"
+                     id="mixColContainer"
+                     onclick="showCode('mix_columns', this)">
+                    
+                    <div class="flex items-center gap-2 mb-2">
+                        <h3 class="text-green-300 font-bold text-xs">3. MixColumns</h3>
+                        <a href="mix_column.html" 
+                           target="_blank" 
+                           onclick="event.stopPropagation()" 
+                           class="w-4 h-4 flex items-center justify-center rounded-full border border-red-500 text-[10px] text-red-500 hover:bg-red-500 hover:text-white transition shadow-lg"
+                           title="클릭하여 상세 계산 원리(Table Lookup) 보기">
+                           ?
+                        </a>
+                    </div>
+
+                    <div id="mixColActive"><div id="grid-mix" class="grid grid-cols-4 gap-0.5"></div></div>
+                    <div id="mixColSkipped" class="hidden h-32 w-32 flex items-center justify-center border border-dashed border-slate-600 rounded text-slate-500 text-[10px]">SKIPPED</div>
+                </div>
+
+                <div class="arrow-right hidden lg:flex">→</div>
+
+                <div class="bg-slate-800 p-3 rounded-xl border border-purple-500/30 flex flex-col items-center step-card"
+                     onclick="showCode('add_round_key', this)">
+                    <h3 class="text-purple-300 font-bold mb-2 text-xs">4. AddRoundKey</h3>
+                    <div id="grid-key" class="grid grid-cols-4 gap-0.5"></div>
+                    <div class="mt-2 text-[9px] text-purple-400">⊕ Round Key</div>
+                </div>
+
+                <div class="arrow-right hidden lg:flex">→</div>
+
+                 <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center">
+                    <h3 class="text-slate-400 font-bold mb-2 text-xs">Result</h3>
+                    <div id="grid-out" class="grid grid-cols-4 gap-0.5"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-4 h-full flex flex-col gap-4 sticky top-4">
+            
+            <div class="bg-[#1e1e1e] rounded-xl shadow-xl overflow-hidden border border-slate-700 flex-1 flex flex-col min-h-[500px]">
+                <div class="bg-[#252526] px-4 py-2 text-xs font-bold text-slate-400 border-b border-[#3e3e42] flex items-center justify-between">
+                    <div class="flex items-center gap-2"><span class="text-blue-400">C Language</span><span id="codeTitle" class="text-white">aes_cipher.c</span></div>
+                    <span class="text-[10px] bg-slate-700 px-2 py-0.5 rounded">Interactive View</span>
+                </div>
+                <div class="p-4 overflow-auto custom-scrollbar flex-1">
+                    <pre><code id="codeDisplay" class="font-mono text-[11px] md:text-xs leading-relaxed text-gray-300 whitespace-pre"></code></pre>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // --- 1. Source Code Snippets ---
+        const CODE_SNIPPETS = {
+            main: `
+<span class="c-key">void</span> <span class="c-func">aes_cipher</span>(uint8_t *in, uint8_t *out, uint8_t *w) {
+    uint8_t state[4*Nb];  <span class="c-com">// State 배열 (4×4 바이트 행렬, 16바이트)</span>
+    uint8_t r, i, j;       <span class="c-com">// r: 라운드 번호, i: 행 인덱스, j: 열 인덱스</span>
+
+    <span class="c-com">// 1단계: 입력 배열을 State 행렬로 변환 (열 우선 순서)</span>
+    <span class="c-key">for</span> (i = 0; i < 4; i++) {
+        <span class="c-key">for</span> (j = 0; j < Nb; j++) {
+            <span class="c-com">// in[i+4*j]는 i번째 행, j번째 열의 바이트</span>
+            state[Nb*i+j] = in[i+4*j];
+        }
+    }
+
+    <span class="c-com">// 2단계: 초기 라운드 키 추가 (라운드 0)</span>
+<span id="line-add-round-key-0" class="code-line">    <span class="c-func">add_round_key</span>(state, w, 0);</span>
+
+<span id="line-step-3" class="code-line">    <span class="c-com">// 3단계: 메인 라운드들 (라운드 1부터 Nr-1까지)</span></span>
+<span id="block-loop" class="code-line">    <span class="c-key">for</span> (r = 1; r < Nr; r++) {
+<span id="line-sub-bytes" class="code-line">        <span class="c-func">sub_bytes</span>(state);      <span class="c-com">// 바이트 치환</span></span>
+<span id="line-shift-rows" class="code-line">        <span class="c-func">shift_rows</span>(state);     <span class="c-com">// 행 이동</span></span>
+<span id="line-mix-columns" class="code-line">        <span class="c-func">mix_columns</span>(state);    <span class="c-com">// 열 혼합</span></span>
+<span id="line-add-round-key" class="code-line">        <span class="c-func">add_round_key</span>(state, w, r);  <span class="c-com">// 라운드 키 추가</span></span>
+    }</span>
+
+    <span class="c-com">// 4단계: 마지막 라운드 (MixColumns 제외)</span>
+<span id="block-final" class="code-line"><span id="line-final-sub" class="code-line">    <span class="c-func">sub_bytes</span>(state);</span>
+<span id="line-final-shift" class="code-line">    <span class="c-func">shift_rows</span>(state);</span>
+<span id="line-final-key" class="code-line">    <span class="c-func">add_round_key</span>(state, w, Nr);</span></span>
+
+    <span class="c-com">// 5단계: State 행렬을 출력 배열로 변환</span>
+    <span class="c-key">for</span> (i = 0; i < 4; i++) {
+        <span class="c-key">for</span> (j = 0; j < Nb; j++) {
+            out[i+4*j] = state[Nb*i+j];
+        }
+    }
+}`,
+            sub_bytes: `
+<span class="c-key">void</span> <span class="c-func">sub_bytes</span>(uint8_t *state) {
+    uint8_t i, j;  <span class="c-com">// i: 행 인덱스, j: 열 인덱스</span>
+    
+    <span class="c-com">// State의 모든 바이트에 대해 S-box 치환 수행</span>
+    <span class="c-key">for</span> (i = 0; i < 4; i++) {
+        <span class="c-key">for</span> (j = 0; j < Nb; j++) {
+            <span class="c-com">// s_box row: yyyy ----</span>
+            <span class="c-com">// s_box col: ---- xxxx</span>
+            <span class="c-com">// s_box[16*(yyyy) + xxxx] == s_box[yyyyxxxx]</span>
+            <span class="c-com">// 바이트 값을 인덱스로 사용하여 S-box에서 치환값 조회</span>
+            state[Nb*i+j] = s_box[state[Nb*i+j]];
+        }
+    }
+}`,
+            shift_rows: `
+<span class="c-key">void</span> <span class="c-func">shift_rows</span>(uint8_t *state) {
+    uint8_t i, k, s, tmp;  <span class="c-com">// i: 행 인덱스, k: 열 인덱스, s: 이동 카운터</span>
+
+    <span class="c-com">// 행 1, 2, 3에 대해 처리 (행 0은 이동하지 않음)</span>
+    <span class="c-key">for</span> (i = 1; i < 4; i++) {
+        <span class="c-com">// shift(1,4)=1; shift(2,4)=2; shift(3,4)=3</span>
+        <span class="c-com">// shift(r, 4) = r;</span>
+        s = 0;
+        <span class="c-com">// i번만큼 왼쪽으로 순환 이동</span>
+        <span class="c-key">while</span> (s < i) {
+            <span class="c-com">// 첫 번째 바이트를 임시 저장</span>
+            tmp = state[Nb*i+0];
+            
+            <span class="c-com">// 나머지 바이트들을 왼쪽으로 이동</span>
+            <span class="c-key">for</span> (k = 1; k < Nb; k++) {
+                state[Nb*i+k-1] = state[Nb*i+k];
+            }
+
+            <span class="c-com">// 첫 번째 바이트를 마지막으로 이동</span>
+            state[Nb*i+Nb-1] = tmp;
+            s++;
+        }
+    }
+}`,
+            mix_columns: `
+<span class="c-key">#define</span> <span class="c-func">gmult</span>(a,b) gmult_aes[256*a + b]
+
+<span class="c-key">void</span> <span class="c-func">coef_mult</span>(uint8_t *a, uint8_t *b, uint8_t *d) {
+    <span class="c-com">// 다항식 곱셈: 각 결과 바이트는 입력의 선형 조합</span>
+    d[0] = <span class="c-func">gmult</span>(a[0],b[0])^<span class="c-func">gmult</span>(a[3],b[1])^<span class="c-func">gmult</span>(a[2],b[2])^<span class="c-func">gmult</span>(a[1],b[3]);
+    d[1] = <span class="c-func">gmult</span>(a[1],b[0])^<span class="c-func">gmult</span>(a[0],b[1])^<span class="c-func">gmult</span>(a[3],b[2])^<span class="c-func">gmult</span>(a[2],b[3]);
+    d[2] = <span class="c-func">gmult</span>(a[2],b[0])^<span class="c-func">gmult</span>(a[1],b[1])^<span class="c-func">gmult</span>(a[0],b[2])^<span class="c-func">gmult</span>(a[3],b[3]);
+    d[3] = <span class="c-func">gmult</span>(a[3],b[0])^<span class="c-func">gmult</span>(a[2],b[1])^<span class="c-func">gmult</span>(a[1],b[2])^<span class="c-func">gmult</span>(a[0],b[3]);
+}
+
+<span class="c-key">void</span> <span class="c-func">mix_columns</span>(uint8_t *state) {
+    <span class="c-com">// 고정 다항식 계수: a(x) = {02} + {01}x + {01}x² + {03}x³</span>
+    uint8_t a[] = {0x02, 0x01, 0x01, 0x03};
+    uint8_t i, j, col[4], res[4];  <span class="c-com">// i: 행 인덱스, j: 열 인덱스</span>
+
+    <span class="c-com">// 각 열에 대해 처리</span>
+    <span class="c-key">for</span> (j = 0; j < Nb; j++) {
+        <span class="c-com">// 현재 열의 4바이트를 추출</span>
+        <span class="c-key">for</span> (i = 0; i < 4; i++) {
+            col[i] = state[Nb*i+j];
+        }
+
+        <span class="c-com">// 다항식 곱셈 수행</span>
+        <span class="c-func">coef_mult</span>(a, col, res);
+
+        <span class="c-com">// 결과를 State에 저장</span>
+        <span class="c-key">for</span> (i = 0; i < 4; i++) {
+            state[Nb*i+j] = res[i];
+        }
+    }
+}`,
+            add_round_key: `
+<span class="c-key">void</span> <span class="c-func">add_round_key</span>(uint8_t *state, uint8_t *w, uint8_t r) {
+    uint8_t c;  <span class="c-com">// 열 인덱스</span>
+    
+    <span class="c-com">// 각 열에 대해 라운드 키를 XOR 연산</span>
+    <span class="c-key">for</span> (c = 0; c < Nb; c++) {
+        <span class="c-com">// State의 각 행과 라운드 키의 해당 바이트를 XOR</span>
+        <span class="c-com">// w[4*Nb*r+4*c+0]은 r번째 라운드의 c번째 열, 0번째 행의 키</span>
+        state[Nb*0+c] = state[Nb*0+c]^w[4*Nb*r+4*c+0];   <span class="c-com">//debug, so it works for Nb !=4 </span>
+        state[Nb*1+c] = state[Nb*1+c]^w[4*Nb*r+4*c+1];
+        state[Nb*2+c] = state[Nb*2+c]^w[4*Nb*r+4*c+2];
+        state[Nb*3+c] = state[Nb*3+c]^w[4*Nb*r+4*c+3];  
+    }
+}`
+        };
+
+        // --- 2. AES Simulation Logic ---
+        const SBOX = [0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, 0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15, 0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75, 0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84, 0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf, 0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8, 0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2, 0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73, 0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb, 0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79, 0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08, 0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a, 0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e, 0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16];
+        const RCON = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
+
+        function gmult(a, b) {
+            let p = 0;
+            for (let i = 0; i < 8; i++) {
+                if ((b & 1) !== 0) p ^= a;
+                let hi_bit = (a & 0x80);
+                a = (a << 1) & 0xFF;
+                if (hi_bit) a ^= 0x1b;
+                b >>= 1;
+            }
+            return p;
+        }
+
+        function toHex(val) { return val.toString(16).toUpperCase().padStart(2, '0'); }
+        function fromHex(str) { return str.match(/.{1,2}/g).map(byte => parseInt(byte, 16)); }
+        function subBytes(state) { return state.map(b => SBOX[b]); }
+        function shiftRows(s) {
+            let out = [...s];
+            let temp = out[1]; out[1] = out[5]; out[5] = out[9]; out[9] = out[13]; out[13] = temp;
+            temp = out[2]; out[2] = out[10]; out[10] = temp;
+            temp = out[6]; out[6] = out[14]; out[14] = temp;
+            temp = out[15]; out[15] = out[11]; out[11] = out[7]; out[7] = out[3]; out[3] = temp;
+            return out;
+        }
+        function mixColumns(s) {
+            let out = new Array(16);
+            for (let c = 0; c < 4; c++) { 
+                let start = c * 4;
+                let s0 = s[start], s1 = s[start+1], s2 = s[start+2], s3 = s[start+3];
+                out[start]   = gmult(s0, 2) ^ gmult(s1, 3) ^ s2 ^ s3;
+                out[start+1] = s0 ^ gmult(s1, 2) ^ gmult(s2, 3) ^ s3;
+                out[start+2] = s0 ^ s1 ^ gmult(s2, 2) ^ gmult(s3, 3);
+                out[start+3] = gmult(s0, 3) ^ s1 ^ s2 ^ gmult(s3, 2);
+            }
+            return out;
+        }
+        function expandKey(masterKey) {
+            let w = new Array(44); 
+            for(let i=0; i<4; i++) w[i] = [masterKey[4*i], masterKey[4*i+1], masterKey[4*i+2], masterKey[4*i+3]];
+            for(let i=4; i<44; i++) {
+                let temp = [...w[i-1]];
+                if(i % 4 === 0) {
+                    temp.push(temp.shift());
+                    temp = temp.map(b => SBOX[b]);
+                    temp[0] ^= RCON[(i/4)-1];
+                }
+                w[i] = [w[i-4][0]^temp[0], w[i-4][1]^temp[1], w[i-4][2]^temp[2], w[i-4][3]^temp[3]];
+            }
+            return w; 
+        }
+        function addRoundKey(state, roundKey) { return state.map((b, i) => b ^ roundKey[i]); }
+
+        let currentState = [];
+        let masterKey = []; // Changed to dynamic
+        let expandedKeys = [];
+        let currentRound = 1;
+
+        // --- 3. UI Functions ---
+
+        function showCode(type, element) {
+            const display = document.getElementById('codeDisplay');
+            const title = document.getElementById('codeTitle');
+            
+            document.querySelectorAll('.step-card').forEach(el => el.classList.remove('active-card'));
+            if(element) element.classList.add('active-card');
+            
+            display.innerHTML = CODE_SNIPPETS[type];
+            
+            if (type === 'main') {
+                title.innerText = 'aes_cipher.c';
+                setTimeout(updateCodeActiveState, 10);
+            }
+            else title.innerText = type + '.c (Detail)';
+        }
+
+        function updateCodeActiveState() {
+            if(document.getElementById('codeTitle').innerText !== 'aes_cipher.c') return;
+
+            document.querySelectorAll('.code-line').forEach(el => {
+                el.classList.remove('code-active');
+                el.classList.remove('code-blink'); 
+            });
+
+            if (currentRound === 1) {
+                document.getElementById('line-step-3')?.classList.add('code-blink');
+            } else if (currentRound < 10) {
+                document.getElementById('block-loop')?.classList.add('code-active');
+            } else {
+                document.getElementById('block-final')?.classList.add('code-active');
+            }
+        }
+
+        function validateHex(el) {
+            let val = el.value.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+            el.value = val;
+            if (val.length === 32) {
+                el.classList.replace('border-slate-500', 'border-green-500');
+                el.classList.replace('border-purple-500', 'border-green-500');
+                el.classList.replace('border-red-500', 'border-green-500');
+            } else {
+                el.classList.add('border-red-500');
+            }
+        }
+
+        function renderGrid(containerId, data, colorClass, isKey = false) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) {
+                    const idx = c*4 + r; 
+                    const val = data[idx];
+                    const div = document.createElement('div');
+                    let css = `state-cell ${colorClass}`;
+                    if(isKey) {
+                        div.style.width = '100%'; div.style.height = '1.2rem'; div.style.fontSize = '0.6rem';
+                    }
+                    div.className = css;
+                    div.innerText = toHex(val);
+                    container.appendChild(div);
+                }
+            }
+        }
+
+        function calculateRound(startState, round) {
+            const keyStart = round * 4;
+            const roundKeyWords = expandedKeys.slice(keyStart, keyStart+4);
+            const roundKey = roundKeyWords.flat();
+            const afterSub = subBytes(startState);
+            const afterShift = shiftRows(afterSub);
+            let afterMix;
+            if (round < 10) afterMix = mixColumns(afterShift);
+            else afterMix = [...afterShift]; 
+            const afterAdd = addRoundKey(afterMix, roundKey);
+            return { start: startState, sub: afterSub, shift: afterShift, mix: afterMix, out: afterAdd, key: roundKey };
+        }
+
+        function updateUI() {
+            document.getElementById('currentRoundDisplay').innerText = `${currentRound}`;
+            
+            const mixActive = document.getElementById('mixColActive');
+            const mixSkip = document.getElementById('mixColSkipped');
+            if (currentRound === 10) {
+                mixActive.classList.add('hidden');
+                mixSkip.classList.remove('hidden');
+            } else {
+                mixActive.classList.remove('hidden');
+                mixSkip.classList.add('hidden');
+            }
+            
+            const round0Panel = document.getElementById('round0Panel');
+            if (currentRound === 1) {
+                round0Panel.classList.remove('hidden');
+                const plainText = [...currentState];
+                const key = expandedKeys.slice(0, 4).flat();
+                const r0Result = addRoundKey(plainText, key);
+                renderGrid('r0-plain', plainText, 'text-slate-300 bg-slate-700/50');
+                renderGrid('r0-key', key, 'phase-key');
+                renderGrid('r0-result', r0Result, 'phase-init text-pink-200');
+            } else {
+                round0Panel.classList.add('hidden');
+            }
+
+            showCode('main', document.getElementById('startCard'));
+
+            let state = [...currentState]; 
+            const round0Key = expandedKeys.slice(0, 4).flat();
+            state = addRoundKey(state, round0Key);
+            for(let r=1; r < currentRound; r++) {
+                 const res = calculateRound(state, r);
+                 state = res.out;
+            }
+            const roundData = calculateRound(state, currentRound);
+            
+            renderGrid('grid-start', roundData.start, 'text-slate-300 bg-slate-700/50');
+            renderGrid('grid-sub', roundData.sub, 'phase-sub');
+            renderGrid('grid-shift', roundData.shift, 'phase-shift');
+            
+            if (currentRound < 10) renderGrid('grid-mix', roundData.mix, 'phase-mix');
+            
+            // Updated: Show actual round key here
+            renderGrid('grid-key', roundData.key, 'phase-key'); 
+            
+            renderGrid('grid-out', roundData.out, 'text-green-300 bg-slate-700 border-green-500');
+        }
+
+        function changeRound(delta) {
+            let next = currentRound + delta;
+            if (next < 1) next = 1;
+            if (next > 10) next = 10;
+            currentRound = next;
+            updateUI();
+        }
+
+        function resetSimulation() {
+            const keyHex = document.getElementById('keyInput').value;
+            const stateHex = document.getElementById('stateInput').value;
+            
+            if(keyHex.length !== 32) { alert('Key 값은 32자리 Hex여야 합니다.'); return; }
+            if(stateHex.length !== 32) { alert('Data 값은 32자리 Hex여야 합니다.'); return; }
+            
+            masterKey = fromHex(keyHex);
+            currentState = fromHex(stateHex);
+            expandedKeys = expandKey(masterKey);
+            currentRound = 1;
+            updateUI();
+        }
+
+        window.onload = resetSimulation;
+    </script>
+</body>
+</html>

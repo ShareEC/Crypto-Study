@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES 복호화 원리 및 순서 분석 (2 Rounds View)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;700&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Flow Blocks */
+        .block-enc { 
+            background: #1e293b; border: 1px solid #4ade80; color: #4ade80; 
+            padding: 8px; border-radius: 6px; text-align: center; font-size: 0.85rem; font-weight: bold;
+            position: relative; transition: all 0.3s; z-index: 20;
+        }
+        .block-dec { 
+            background: #1e293b; border: 1px solid #c084fc; color: #c084fc; 
+            padding: 8px; border-radius: 6px; text-align: center; font-size: 0.85rem; font-weight: bold;
+            position: relative; transition: all 0.3s; z-index: 20;
+        }
+        
+        /* Ghost Block (Previous Round) */
+        .block-ghost { opacity: 0.5; border-style: dashed; }
+
+        /* Highlight Matching Pairs */
+        .block-enc:hover, .block-dec:hover { transform: scale(1.05); z-index: 30; background: #334155; cursor: pointer; }
+        
+        .match-highlight { 
+            background: #fef08a !important; color: #854d0e !important; 
+            border-color: #eab308 !important; box-shadow: 0 0 20px rgba(250, 204, 21, 0.5); 
+        }
+
+        /* Connectors */
+        .arrow-path { stroke: #475569; stroke-width: 1.5; fill: none; stroke-dasharray: 5; transition: all 0.3s; }
+        
+        /* Round Box */
+        .round-box { 
+            border: 1px dashed #334155; padding: 12px; border-radius: 12px; margin: 8px 0; 
+            background: rgba(15, 23, 42, 0.5); 
+        }
+        .round-label { 
+            font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; 
+            letter-spacing: 1px; margin-bottom: 8px; display: block; text-align: center; font-weight: bold;
+        }
+
+        /* Center Info */
+        .center-badge {
+            background: #1e293b; border: 1px solid #64748b; padding: 10px 20px;
+            border-radius: 9999px; text-align: center; font-size: 0.8rem; color: #cbd5e1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+    </style>
+</head>
+<body class="p-6 min-h-screen flex flex-col items-center">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-6xl w-full mb-8 text-center">
+        <h1 class="text-3xl font-bold text-white mb-2">AES 복호화 "샌드위치" 구조 분석</h1>
+        <p class="text-slate-400 text-sm">
+            복호화 1라운드가 암호화의 <span class="text-green-400">어떤 단계들</span>을 되돌리는지 2개 라운드를 통해 확인합니다.<br>
+            박스에 마우스를 올리면 연결선이 강조됩니다.
+        </p>
+    </header>
+
+    <main class="max-w-[1600px] w-full grid grid-cols-1 lg:grid-cols-12 gap-16 relative">
+
+        <div class="lg:col-span-5 flex flex-col gap-2">
+            <h2 class="text-xl font-bold text-green-400 text-center mb-2 border-b border-green-500/30 pb-2">⬇️ 암호화 (Encryption)</h2>
+            
+            <div class="round-box border-green-900/30">
+                <span class="round-label opacity-50">Round 8 (Previous)</span>
+                <div class="flex flex-col gap-2 opacity-50">
+                    <div class="block-enc block-ghost">SubBytes / ShiftRows</div>
+                    <div id="enc-mix-8" class="block-enc block-ghost" onmouseenter="highlight('mix-8')" onmouseleave="clearHighlight()">MixColumns</div>
+                    <div id="enc-key-8" class="block-enc block-ghost bg-green-900/10" onmouseenter="highlight('key-8')" onmouseleave="clearHighlight()">⊕ AddRoundKey (8)</div>
+                </div>
+            </div>
+
+            <div class="round-box border-green-500/30">
+                <span class="round-label text-green-500">Round 9</span>
+                <div class="flex flex-col gap-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div id="enc-sub-9" class="block-enc" onmouseenter="highlight('sub-9')" onmouseleave="clearHighlight()">SubBytes</div>
+                        <div id="enc-shift-9" class="block-enc" onmouseenter="highlight('shift-9')" onmouseleave="clearHighlight()">ShiftRows</div>
+                    </div>
+                    <div id="enc-mix-9" class="block-enc" onmouseenter="highlight('mix-9')" onmouseleave="clearHighlight()">MixColumns</div>
+                    <div id="enc-key-9" class="block-enc bg-green-900/20" onmouseenter="highlight('key-9')" onmouseleave="clearHighlight()">⊕ AddRoundKey (9)</div>
+                </div>
+            </div>
+
+            <div class="round-box border-yellow-500/50 bg-yellow-500/5">
+                <span class="round-label text-yellow-500">Round 10 (Final)</span>
+                <div class="flex flex-col gap-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div id="enc-sub-10" class="block-enc" onmouseenter="highlight('sub-10')" onmouseleave="clearHighlight()">SubBytes</div>
+                        <div id="enc-shift-10" class="block-enc" onmouseenter="highlight('shift-10')" onmouseleave="clearHighlight()">ShiftRows</div>
+                    </div>
+                    
+                    <div class="h-8 border-2 border-dashed border-slate-600 rounded flex items-center justify-center text-slate-500 text-xs">
+                        (No MixColumns)
+                    </div>
+
+                    <div id="enc-key-10" class="block-enc bg-green-900/20" onmouseenter="highlight('key-10')" onmouseleave="clearHighlight()">⊕ AddRoundKey (10)</div>
+                </div>
+            </div>
+            
+            <div class="text-center text-white font-bold mt-2 bg-slate-800 p-2 rounded">⬇️ CipherText (암호문)</div>
+        </div>
+
+        <div class="lg:col-span-2 relative hidden lg:block">
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" id="connectionLines" style="overflow: visible;">
+                </svg>
+            
+            <div class="absolute top-[20%] left-1/2 -translate-x-1/2 center-badge">
+                반복 구간
+            </div>
+            <div class="absolute top-[60%] left-1/2 -translate-x-1/2 center-badge text-yellow-300 border-yellow-600">
+                Logic Twist
+            </div>
+        </div>
+
+        <div class="lg:col-span-5 flex flex-col gap-2">
+            <h2 class="text-xl font-bold text-purple-400 text-center mb-2 border-b border-purple-500/30 pb-2">⬇️ 복호화 (Decryption)</h2>
+            
+            <div class="round-box border-purple-500/50">
+                <span class="round-label text-purple-300">Start (Initial Key)</span>
+                <div id="dec-key-10" class="block-dec bg-purple-900/20" onmouseenter="highlight('key-10')" onmouseleave="clearHighlight()">
+                    ⊕ AddRoundKey (10)
+                    <div class="text-[10px] text-slate-400 font-normal">암호화의 마지막 키 제거</div>
+                </div>
+            </div>
+
+            <div class="round-box bg-purple-500/5">
+                <span class="round-label text-white">Decryption Loop 1</span>
+                <div class="flex flex-col gap-2">
+                    <div class="text-[10px] text-slate-400 text-center mb-1">Enc R10의 Shift/Sub + Enc R9의 Key/Mix를 해결</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div id="dec-shift-10" class="block-dec" onmouseenter="highlight('shift-10')" onmouseleave="clearHighlight()">1. InvShift</div>
+                        <div id="dec-sub-10" class="block-dec" onmouseenter="highlight('sub-10')" onmouseleave="clearHighlight()">2. InvSub</div>
+                    </div>
+                    <div id="dec-key-9" class="block-dec bg-purple-900/20" onmouseenter="highlight('key-9')" onmouseleave="clearHighlight()">3. AddRoundKey (9)</div>
+                    <div id="dec-mix-9" class="block-dec" onmouseenter="highlight('mix-9')" onmouseleave="clearHighlight()">4. InvMixColumns</div>
+                </div>
+            </div>
+
+            <div class="round-box bg-purple-500/5">
+                <span class="round-label text-white">Decryption Loop 2</span>
+                <div class="flex flex-col gap-2">
+                    <div class="text-[10px] text-slate-400 text-center mb-1">Enc R9의 Shift/Sub + Enc R8의 Key/Mix를 해결</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div id="dec-shift-9" class="block-dec" onmouseenter="highlight('shift-9')" onmouseleave="clearHighlight()">1. InvShift</div>
+                        <div id="dec-sub-9" class="block-dec" onmouseenter="highlight('sub-9')" onmouseleave="clearHighlight()">2. InvSub</div>
+                    </div>
+                    <div id="dec-key-8" class="block-dec bg-purple-900/20" onmouseenter="highlight('key-8')" onmouseleave="clearHighlight()">3. AddRoundKey (8)</div>
+                    <div id="dec-mix-8" class="block-dec" onmouseenter="highlight('mix-8')" onmouseleave="clearHighlight()">4. InvMixColumns</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div class="mt-8 bg-slate-800 p-6 rounded-xl border border-slate-700 max-w-4xl w-full text-sm text-slate-300 shadow-xl">
+        <h3 class="text-white font-bold mb-3 flex items-center gap-2">
+            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            핵심 요약
+        </h3>
+        <ul class="list-disc pl-5 space-y-2">
+            <li>
+                <strong class="text-green-400">암호화</strong>는 <code class="bg-black/30 px-1 rounded">Sub → Shift → Mix → Key</code> 순서로 진행되지만,
+                마지막 라운드(R10)에서만 <code class="text-red-400 line-through">MixColumns</code>가 빠집니다.
+            </li>
+            <li>
+                <strong class="text-purple-400">복호화</strong>는 이를 역순으로 수행해야 하므로, 시작하자마자 R10의 키를 제거하고,
+                바로 R10의 <code class="mono">InvShift/InvSub</code>를 수행합니다. (MixColumns 복구 불필요)
+            </li>
+            <li>
+                그 이후부터는 <strong>"이전 라운드의 끝(Key/Mix) + 현재 라운드의 시작(Shift/Sub)"</strong>이 
+                하나의 세트(<code class="mono">InvShift → InvSub → AddKey → InvMix</code>)가 되어 반복됩니다.
+            </li>
+        </ul>
+    </div>
+
+    <script>
+        // --- Connecting Lines Logic ---
+        function drawLines() {
+            const svg = document.getElementById('connectionLines');
+            svg.innerHTML = ''; // Clear
+
+            // Pairs: [Encryption ID, Decryption ID]
+            const pairs = [
+                // Start Phase
+                ['enc-key-10', 'dec-key-10'],
+                
+                // Loop 1 (Undoing R10 top & R9 bottom)
+                ['enc-shift-10', 'dec-shift-10'],
+                ['enc-sub-10', 'dec-sub-10'],
+                ['enc-key-9', 'dec-key-9'],
+                ['enc-mix-9', 'dec-mix-9'],
+
+                // Loop 2 (Undoing R9 top & R8 bottom)
+                ['enc-shift-9', 'dec-shift-9'],
+                ['enc-sub-9', 'dec-sub-9'],
+                ['enc-key-8', 'dec-key-8'],
+                ['enc-mix-8', 'dec-mix-8']
+            ];
+
+            const containerRect = svg.getBoundingClientRect();
+
+            pairs.forEach(pair => {
+                const el1 = document.getElementById(pair[0]); // Enc (Left)
+                const el2 = document.getElementById(pair[1]); // Dec (Right)
+                
+                if(el1 && el2) {
+                    const rect1 = el1.getBoundingClientRect();
+                    const rect2 = el2.getBoundingClientRect();
+
+                    // Calculate Start (Right side of Enc box) and End (Left side of Dec box)
+                    // Adjust coordinates relative to SVG container
+                    const x1 = rect1.right - containerRect.left;
+                    const y1 = rect1.top + rect1.height / 2 - containerRect.top;
+                    
+                    const x2 = rect2.left - containerRect.left;
+                    const y2 = rect2.top + rect2.height / 2 - containerRect.top;
+
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    
+                    // Bezier Curve Logic
+                    const controlOffset = 80;
+                    const d = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+                    
+                    path.setAttribute("d", d);
+                    path.setAttribute("class", "arrow-path");
+                    // ID for highlighting: e.g., line-key-10
+                    // Remove 'enc-' prefix for ID
+                    const suffix = pair[0].replace('enc-', '');
+                    path.setAttribute("id", `line-${suffix}`);
+                    
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        // --- Interaction Logic ---
+        function highlight(idSuffix) {
+            // Highlight Boxes
+            const encId = `enc-${idSuffix}`;
+            const decId = `dec-${idSuffix}`;
+            document.getElementById(encId)?.classList.add('match-highlight');
+            document.getElementById(decId)?.classList.add('match-highlight');
+
+            // Highlight Line
+            const line = document.getElementById(`line-${idSuffix}`);
+            if(line) {
+                line.style.stroke = '#facc15'; // Yellow
+                line.style.strokeWidth = '3';
+                line.style.strokeDasharray = '0'; // Solid line
+                line.style.filter = 'drop-shadow(0 0 5px #eab308)';
+            }
+        }
+
+        function clearHighlight() {
+            document.querySelectorAll('.match-highlight').forEach(el => el.classList.remove('match-highlight'));
+            document.querySelectorAll('.arrow-path').forEach(el => {
+                el.style.stroke = '';
+                el.style.strokeWidth = '';
+                el.style.strokeDasharray = '';
+                el.style.filter = '';
+            });
+        }
+
+        // Init
+        window.onload = () => {
+            setTimeout(drawLines, 100); // Slight delay to ensure layout is settled
+        };
+        window.onresize = drawLines;
+
+    </script>
+</body>
+</html>

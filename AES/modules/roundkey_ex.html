@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES Key Expansion & Init Visualizer (Detailed Bitwise)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        .word-card { transition: all 0.2s; cursor: pointer; }
+        .word-card:hover { transform: translateY(-2px); border-color: #60a5fa; }
+        .g-function { border-left: 2px solid #f59e0b; padding-left: 0.5rem; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        .arrow-down { 
+            width: 0; height: 0; 
+            border-left: 6px solid transparent; border-right: 6px solid transparent; 
+            border-top: 8px solid #94a3b8; margin: 4px auto;
+        }
+
+        /* Bit Visualization Styles */
+        .bit-1 { color: #60a5fa; font-weight: bold; } /* Blue-400 */
+        .bit-0 { color: #475569; } /* Slate-600 */
+        .xor-block {
+            background-color: #1e293b;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<!-- h-screen 및 overflow-hidden으로 전체 화면 스크롤 방지 -->
+<body class="p-4 md:p-6 h-screen flex flex-col items-center overflow-hidden">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-[95%] w-full mb-4 text-center shrink-0">
+        <h1 class="text-3xl font-bold text-blue-400 mb-2">라운드 키 확장 시각화 (비트 상세)</h1>
+        <p class="text-slate-400 text-sm">왼쪽의 상세 과정과 오른쪽의 키 확장 결과를 비교하며 확인하세요.</p>
+    </header>
+
+    <!-- 
+        Main Grid: flex-1과 min-h-0을 사용하여 남은 높이만큼 꽉 채움 
+        [수정됨] items-start 제거 -> items-stretch(기본값) 적용되어 높이가 화면에 맞게 고정됨
+    -->
+    <main class="max-w-[95%] w-full grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0 pb-2">
+
+        <!-- [Left Column] Input & Detail View -->
+        <div class="space-y-4 flex flex-col h-full overflow-hidden">
+            
+            <!-- 1. Master Key Input (Fixed Height) -->
+            <section class="bg-slate-800 rounded-xl p-5 shadow-lg border border-slate-700 shrink-0">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-blue-500 rounded"></span>
+                    1. 마스터 키 설정 (16 Bytes)
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">Master Key (Hex)</label>
+                        <input type="text" id="masterKeyInput" class="w-full bg-slate-900 border border-slate-600 text-white p-3 rounded mono text-sm uppercase focus:border-blue-500 outline-none tracking-widest text-center" 
+                               value="2B7E151628AED2A6ABF7158809CF4F3C">
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="generateRandomKey()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-xs py-3 rounded text-slate-200 transition font-medium">🎲 랜덤 키 생성</button>
+                        <button onclick="runKeyExpansion()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-xs font-bold py-3 rounded text-white shadow-lg transition">🚀 키 확장 실행</button>
+                    </div>
+                    <p class="text-[10px] text-slate-500 text-center">* AES-128 기준: 4 Words (128 bits) 입력</p>
+                </div>
+            </section>
+
+            <!-- 2. Detailed Calculation Process (Flexible Height with Scroll) -->
+            <section id="detailSection" class="bg-slate-800 rounded-xl p-5 shadow-lg border border-slate-700 flex-1 flex flex-col min-h-0">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2 flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-6 bg-yellow-500 rounded"></span>
+                        <span>2. 상세 계산 과정</span>
+                    </div>
+                    <span id="detailIndex" class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded mono">선택 대기중</span>
+                </h2>
+                
+                <!-- Scrollable Content -->
+                <div id="detailContent" class="space-y-4 text-sm mono flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                    <!-- Placeholder -->
+                    <div class="h-full flex flex-col items-center justify-center text-slate-500 opacity-50 py-10">
+                        <svg class="w-16 h-16 mb-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <p class="text-sm text-center font-medium">오른쪽 [키 확장 결과] 목록에서<br><span class="text-blue-400 font-bold">Word</span>를 클릭하여 상세 과정을 확인하세요.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- [Right Column] Expanded Key Result -->
+        <div class="space-y-4 flex flex-col h-full overflow-hidden">
+            
+            <!-- Summary Stats (Fixed Height) -->
+            <div class="grid grid-cols-3 gap-4 shrink-0">
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 text-center shadow">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Rounds</div>
+                    <div class="text-xl font-bold text-blue-400">10</div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 text-center shadow">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Generated Keys</div>
+                    <div class="text-xl font-bold text-green-400">11</div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 text-center shadow">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Total Words</div>
+                    <div class="text-xl font-bold text-purple-400">44</div>
+                </div>
+            </div>
+
+            <!-- Key Schedule List (Flexible Height with Scroll) -->
+            <section class="bg-slate-800 rounded-xl p-5 shadow-lg border border-slate-700 flex-1 flex flex-col min-h-0">
+                <h2 class="text-lg font-bold text-white mb-2 flex items-center gap-2 border-b border-slate-700 pb-2 shrink-0">
+                    <span class="w-2 h-6 bg-green-500 rounded"></span>
+                    3. 키 확장 결과 (Key Schedule)
+                    <span class="text-xs font-normal text-slate-400 ml-auto bg-slate-900 px-2 py-1 rounded border border-slate-600">🖱️ 클릭하여 분석</span>
+                </h2>
+                
+                <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar mt-2">
+                    <div id="roundsContainer" class="space-y-4 pb-4">
+                        <!-- Rounds will be generated here -->
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <script>
+        // --- Constants & Globals ---
+        const SBOX = [
+            0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+            0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+            0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+            0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+            0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+            0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+            0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+            0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+            0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+            0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+            0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+            0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+            0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+            0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+            0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+            0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
+        ];
+
+        const RCON = [
+            0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
+        ];
+
+        let expandedKeyData = []; // Stores detailed info for each word
+
+        // --- Core AES Logic ---
+
+        function subWord(word) {
+            return word.map(b => SBOX[b]);
+        }
+
+        function rotWord(word) {
+            return [word[1], word[2], word[3], word[0]];
+        }
+
+        function xorWords(w1, w2) {
+            return w1.map((b, i) => b ^ w2[i]);
+        }
+
+        function bytesToHex(bytes) {
+            return bytes.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join('');
+        }
+        
+        function byteToHex(b) {
+            return b.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function hexToBytes(hex) {
+            const bytes = [];
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes.push(parseInt(hex.substr(i, 2), 16));
+            }
+            return bytes;
+        }
+
+        // --- Bit Visualization Helper ---
+        function toBinStr(byte) {
+            let bin = byte.toString(2).padStart(8, '0');
+            return bin.split('').map(b => 
+                b === '1' ? `<span class="bit-1">1</span>` : `<span class="bit-0">0</span>`
+            ).join('');
+        }
+
+        function renderByteXorBlock(labelA, valA, labelB, valB, labelRes, valRes, isHighlight = false) {
+            const hlClass = isHighlight ? "border-yellow-500/50 bg-yellow-500/10" : "border-slate-700";
+            return `
+                <div class="xor-block ${hlClass} border">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-slate-400 w-16">${labelA}</span>
+                        <span class="font-bold text-white">${byteToHex(valA)}</span>
+                        <div class="flex ml-2">${toBinStr(valA)}</div>
+                    </div>
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-slate-400 w-16 flex items-center gap-1"><span class="text-xs">⊕</span> ${labelB}</span>
+                        <span class="font-bold text-white">${byteToHex(valB)}</span>
+                        <div class="flex ml-2">${toBinStr(valB)}</div>
+                    </div>
+                    <div class="border-t border-slate-600 my-1"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-blue-300 w-16 font-bold">${labelRes}</span>
+                        <span class="font-bold text-blue-300">${byteToHex(valRes)}</span>
+                        <div class="flex ml-2">${toBinStr(valRes)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function runKeyExpansion() {
+            const masterKeyHex = document.getElementById('masterKeyInput').value.replace(/\s+/g, '');
+            if (!/^[0-9A-Fa-f]{32}$/.test(masterKeyHex)) {
+                alert("마스터 키는 32자리 Hex 문자열(16바이트)이어야 합니다.");
+                return;
+            }
+
+            const key = hexToBytes(masterKeyHex);
+            expandedKeyData = [];
+            const w = []; 
+
+            // 1. First 4 words are the Master Key itself
+            for (let i = 0; i < 4; i++) {
+                w[i] = [key[4*i], key[4*i+1], key[4*i+2], key[4*i+3]];
+                expandedKeyData.push({
+                    index: i,
+                    word: w[i],
+                    type: 'init',
+                    detail: null
+                });
+            }
+
+            // 2. Expand Key
+            for (let i = 4; i < 44; i++) {
+                let temp = [...w[i-1]];
+                let detail = { type: 'simple', prev: w[i-1], target: w[i-4] };
+
+                if (i % 4 === 0) {
+                    detail.type = 'complex';
+                    detail.beforeRot = [...temp];
+                    temp = rotWord(temp);
+                    detail.afterRot = [...temp];
+                    temp = subWord(temp);
+                    detail.afterSub = [...temp];
+                    
+                    const rconVal = RCON[i/4];
+                    detail.rcon = [rconVal, 0, 0, 0];
+                    detail.rconVal = rconVal;
+                    
+                    // XOR with Rcon (Only first byte changes)
+                    temp[0] = temp[0] ^ rconVal;
+                    detail.afterRcon = [...temp];
+                }
+
+                w[i] = xorWords(w[i-4], temp);
+                
+                detail.result = w[i];
+                expandedKeyData.push({
+                    index: i,
+                    word: w[i],
+                    type: (i % 4 === 0) ? 'complex' : 'simple',
+                    detail: detail
+                });
+            }
+
+            renderVisualization();
+        }
+
+        // --- Visualization & UI ---
+
+        function renderVisualization() {
+            const container = document.getElementById('roundsContainer');
+            container.innerHTML = '';
+
+            for (let round = 0; round <= 10; round++) {
+                // Round Container
+                const roundDiv = document.createElement('div');
+                roundDiv.className = 'bg-slate-900/50 p-4 rounded-lg border border-slate-700';
+                
+                // Header
+                const header = document.createElement('h3');
+                header.className = 'text-sm font-bold text-slate-300 mb-3 flex justify-between';
+                header.innerHTML = `<span>Round ${round} Key</span> <span class="text-xs text-slate-500 font-mono">Words [${round*4} ~ ${round*4+3}]</span>`;
+                roundDiv.appendChild(header);
+
+                // Words Grid
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-4 gap-2';
+
+                for (let i = 0; i < 4; i++) {
+                    const wordIdx = round * 4 + i;
+                    const data = expandedKeyData[wordIdx];
+                    const hexVal = bytesToHex(data.word);
+                    
+                    const btn = document.createElement('div');
+                    // Style specifically for the "generated" words (multiples of 4)
+                    const isComplex = (wordIdx >= 4 && wordIdx % 4 === 0);
+                    const borderColor = isComplex ? 'border-yellow-500/50' : 'border-slate-600';
+                    const bgColor = isComplex ? 'bg-yellow-500/10' : 'bg-slate-800';
+
+                    btn.className = `word-card ${bgColor} border ${borderColor} p-2 rounded text-center`;
+                    btn.onclick = () => showDetail(wordIdx);
+                    
+                    btn.innerHTML = `
+                        <div class="text-[10px] text-slate-500 mb-1">w[${wordIdx}]</div>
+                        <div class="font-mono text-sm font-bold text-blue-200 tracking-wider">${hexVal}</div>
+                    `;
+                    grid.appendChild(btn);
+                }
+                roundDiv.appendChild(grid);
+                container.appendChild(roundDiv);
+            }
+        }
+
+        function showDetail(index) {
+            const indexLabel = document.getElementById('detailIndex');
+            const content = document.getElementById('detailContent');
+            
+            indexLabel.innerText = `Word[${index}]`;
+            indexLabel.className = "text-xs bg-blue-600 text-white px-2 py-1 rounded";
+            
+            const data = expandedKeyData[index];
+
+            if (data.type === 'init') {
+                content.innerHTML = `
+                    <div class="text-slate-400">초기 마스터 키의 일부입니다.</div>
+                    <div class="mt-4 p-4 bg-slate-900 rounded border border-slate-600 text-center">
+                        <div class="text-xs text-slate-500 mb-2">Value</div>
+                        <div class="text-xl text-white font-bold tracking-widest">${bytesToHex(data.word)}</div>
+                        <div class="grid grid-cols-4 gap-2 mt-4 text-[10px] text-slate-500">
+                            ${data.word.map(b => `<div>${toBinStr(b)}</div>`).join('')}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const d = data.detail;
+            const targetHex = bytesToHex(d.target); // w[i-4]
+            const prevHex = bytesToHex(d.prev);     // w[i-1] (Initial)
+            const resHex = bytesToHex(data.word);
+
+            let html = '';
+
+            // 1. g-function visualization (if applicable)
+            if (data.type === 'complex') {
+                html += `
+                    <div class="text-xs text-yellow-500 mb-2 font-bold flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                        g-function 적용
+                    </div>
+                    
+                    <div class="space-y-2 text-xs border-l-2 border-yellow-500/30 pl-3 ml-1 mb-6">
+                        <!-- RotWord -->
+                        <div class="flex justify-between items-center py-1">
+                            <span class="text-slate-400">1. Input (w[${index-1}])</span>
+                            <span class="mono">${bytesToHex(d.beforeRot)}</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1 bg-slate-700/30 rounded px-1">
+                            <span class="text-slate-400">2. RotWord (<<<8)</span>
+                            <span class="mono text-yellow-200 font-bold">${bytesToHex(d.afterRot)}</span>
+                        </div>
+                        
+                        <!-- SubWord -->
+                        <div class="flex justify-between items-center py-1">
+                            <span class="text-slate-400">3. SubWord (S-Box)</span>
+                            <span class="mono text-yellow-200 font-bold">${bytesToHex(d.afterSub)}</span>
+                        </div>
+                        
+                        <!-- Rcon XOR (Detailed Bit View) -->
+                        <div class="mt-3">
+                            <div class="text-slate-400 mb-1">4. Rcon XOR (MSB Only)</div>
+                            <!-- Rcon calculation detail block -->
+                            ${renderByteXorBlock("Sub[0]", d.afterSub[0], "Rcon", d.rconVal, "Result", d.afterRcon[0], true)}
+                            <div class="text-[10px] text-slate-500 mt-1 text-right">* 나머지 3바이트는 변경 없음</div>
+                        </div>
+
+                        <div class="border-t border-slate-600 my-2"></div>
+                        <div class="flex justify-between items-center font-bold">
+                            <span class="text-yellow-500">g(w[${index-1}]) 결과</span>
+                            <span class="mono text-white text-base">${bytesToHex(d.afterRcon)}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 2. Final XOR Visualization (Bitwise for all 4 bytes)
+            const op2Hex = data.type === 'complex' ? bytesToHex(d.afterRcon) : prevHex;
+            const op2Bytes = data.type === 'complex' ? d.afterRcon : d.prev;
+            const op2Label = data.type === 'complex' ? `g(w)` : `w[${index-1}]`;
+
+            html += `
+                <div class="text-xs text-blue-400 mb-2 font-bold flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    최종 키 생성 (XOR)
+                </div>
+                <div class="text-[10px] text-slate-500 mb-2 font-mono text-center">
+                    w[${index}] = w[${index-4}] ⊕ ${op2Label}
+                </div>
+
+                <div class="space-y-2">
+                    ${d.target.map((byte, i) => 
+                        renderByteXorBlock(
+                            `w[${index-4}]_b${i}`, byte, 
+                            `${op2Label}_b${i}`, op2Bytes[i], 
+                            `w[${index}]_b${i}`, data.word[i]
+                        )
+                    ).join('')}
+                </div>
+                
+                <div class="mt-4 p-3 bg-blue-900/30 border border-blue-500/50 rounded-lg text-center">
+                    <div class="text-xs text-blue-300 mb-1">Generated Word (w[${index}])</div>
+                    <div class="text-xl font-bold text-white tracking-widest font-mono">${resHex}</div>
+                </div>
+            `;
+
+            content.innerHTML = html;
+        }
+
+        function generateRandomKey() {
+            const hex = Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('').toUpperCase();
+            document.getElementById('masterKeyInput').value = hex;
+            runKeyExpansion();
+        }
+
+        // Initial run
+        window.onload = runKeyExpansion;
+
+    </script>
+</body>
+</html>

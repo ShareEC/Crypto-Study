@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES 초기화 (aes_init) 시각화</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Code Syntax Highlighting */
+        .c-keyword { color: #c678dd; font-weight: bold; } /* purple */
+        .c-type { color: #e5c07b; } /* yellow */
+        .c-func { color: #61afef; } /* blue */
+        .c-var { color: #e06c75; } /* red */
+        .c-num { color: #d19a66; } /* orange */
+        .c-comment { color: #5c6370; font-style: italic; } /* gray */
+        
+        .param-box { transition: all 0.3s ease; }
+        .param-box.active { background-color: #1e293b; border-color: #3b82f6; transform: scale(1.02); }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+    
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-5xl w-full mb-8 text-center">
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">AES 초기화 (aes_init)</h1>
+        <p class="text-slate-400 text-sm md:text-base">키 길이에 따른 파라미터 설정(Nk, Nr) 및 메모리 할당 과정</p>
+    </header>
+
+    <main class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- Left Column: Source Code View -->
+        <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700 h-full flex flex-col">
+            <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                소스 코드 (Source Code)
+            </h2>
+            
+            <div class="bg-slate-900 p-4 rounded-lg overflow-x-auto text-sm mono leading-relaxed flex-1 border border-slate-700">
+<pre><code><span class="c-type">uint8_t</span> *<span class="c-func">aes_init</span>(<span class="c-type">size_t</span> <span class="c-var">key_size</span>) {
+    <span class="c-comment">// 키 크기에 따라 파라미터 설정</span>
+    <span class="c-keyword">switch</span> (<span class="c-var">key_size</span>) {
+        <span class="c-keyword">default</span>:
+        <span class="c-keyword">case</span> <span class="c-num">16</span>: <span id="code-case-16" class="transition-colors duration-300">Nk = 4; Nr = 10; <span class="c-keyword">break</span>;  <span class="c-comment">// AES-128</span></span>
+        <span class="c-keyword">case</span> <span class="c-num">24</span>: <span id="code-case-24" class="transition-colors duration-300">Nk = 6; Nr = 12; <span class="c-keyword">break</span>;  <span class="c-comment">// AES-192</span></span>
+        <span class="c-keyword">case</span> <span class="c-num">32</span>: <span id="code-case-32" class="transition-colors duration-300">Nk = 8; Nr = 14; <span class="c-keyword">break</span>;  <span class="c-comment">// AES-256</span></span>
+    }
+
+    <span class="c-comment">// 확장 키 배열 메모리 할당</span>
+    <span class="c-comment">// 크기: Nb * (Nr + 1) * 4 바이트</span>
+    <span class="c-comment">// Nb=4이므로: 4 * (Nr+1) * 4 = 16 * (Nr+1) 바이트</span>
+    <span class="c-keyword">return</span> <span class="c-func">malloc</span>(<span id="code-malloc" class="transition-colors duration-300">Nb * (Nr + 1) * 4</span>);
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Right Column: Interactive Visualization -->
+        <div class="space-y-6">
+            
+            <!-- Controls -->
+            <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-lg font-bold text-white mb-4">키 크기 선택 (Key Size)</h2>
+                <div class="grid grid-cols-3 gap-3">
+                    <button onclick="setMode(16)" id="btn-16" class="param-box bg-slate-700 hover:bg-slate-600 text-slate-200 py-3 rounded-lg border border-slate-600 font-bold transition">
+                        AES-128
+                    </button>
+                    <button onclick="setMode(24)" id="btn-24" class="param-box bg-slate-700 hover:bg-slate-600 text-slate-200 py-3 rounded-lg border border-slate-600 font-bold transition">
+                        AES-192
+                    </button>
+                    <button onclick="setMode(32)" id="btn-32" class="param-box bg-slate-700 hover:bg-slate-600 text-slate-200 py-3 rounded-lg border border-slate-600 font-bold transition">
+                        AES-256
+                    </button>
+                </div>
+            </section>
+
+            <!-- Variables Status -->
+            <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-lg font-bold text-white mb-4">설정된 파라미터 (Parameters)</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Nk -->
+                    <div class="bg-slate-900 p-4 rounded-lg border border-slate-600 text-center">
+                        <div class="text-xs text-slate-400 mb-1">Nk (키 워드 수)</div>
+                        <div class="text-2xl font-bold text-blue-400 mono" id="val-Nk">4</div>
+                        <div class="text-[10px] text-slate-500 mt-1">Key Size / 4</div>
+                    </div>
+                    <!-- Nr -->
+                    <div class="bg-slate-900 p-4 rounded-lg border border-slate-600 text-center">
+                        <div class="text-xs text-slate-400 mb-1">Nr (라운드 수)</div>
+                        <div class="text-2xl font-bold text-green-400 mono" id="val-Nr">10</div>
+                        <div class="text-[10px] text-slate-500 mt-1">AES Standard</div>
+                    </div>
+                </div>
+                
+                <!-- Calculation Formula -->
+                <div class="mt-4 p-4 bg-slate-900 rounded-lg border border-slate-600">
+                    <div class="text-xs text-slate-400 mb-2">메모리 할당 크기 계산 (Nb = 4 고정)</div>
+                    <div class="mono text-sm text-center text-slate-300">
+                        <span class="text-purple-400 font-bold">16</span> × 
+                        (<span class="text-green-400 font-bold" id="calc-Nr">10</span> + 1) = 
+                        <span class="text-yellow-400 font-bold text-lg ml-2" id="calc-result">176</span> Bytes
+                    </div>
+                    <div class="text-[10px] text-slate-500 mt-2 text-center">
+                        (라운드 수 + 1)개의 라운드 키 × 16바이트
+                    </div>
+                </div>
+            </section>
+
+            <!-- Memory Visualization -->
+            <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-lg font-bold text-white mb-4">메모리 구조 (Expanded Key Array)</h2>
+                <div class="relative h-12 bg-slate-900 rounded-full overflow-hidden border border-slate-600 flex items-center">
+                    <!-- Progress Bar -->
+                    <div id="memory-bar" class="h-full bg-gradient-to-r from-blue-600 to-blue-400 transition-all duration-500 ease-out flex items-center justify-center text-xs font-bold text-white shadow-lg" style="width: 50%">
+                        <span id="memory-text">176 Bytes</span>
+                    </div>
+                    <!-- Background Markers -->
+                    <div class="absolute inset-0 flex justify-between px-2 pointer-events-none">
+                        <div class="w-px h-full bg-slate-700"></div>
+                        <div class="w-px h-full bg-slate-700"></div>
+                        <div class="w-px h-full bg-slate-700"></div>
+                        <div class="w-px h-full bg-slate-700"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-[10px] text-slate-500 mt-1 px-1">
+                    <span>0 Bytes</span>
+                    <span>Max (240 Bytes)</span>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <script>
+        function setMode(keySize) {
+            // 1. Reset Buttons
+            document.querySelectorAll('.param-box').forEach(btn => {
+                btn.classList.remove('active', 'border-blue-500', 'text-blue-400');
+                btn.classList.add('border-slate-600', 'text-slate-200');
+            });
+
+            // 2. Activate Selected Button
+            const activeBtn = document.getElementById(`btn-${keySize}`);
+            activeBtn.classList.add('active', 'border-blue-500', 'text-blue-400');
+            activeBtn.classList.remove('border-slate-600', 'text-slate-200');
+
+            // 3. Set Parameters
+            let nk, nr;
+            
+            // Code Highlighting Reset
+            document.getElementById('code-case-16').className = "transition-colors duration-300";
+            document.getElementById('code-case-24').className = "transition-colors duration-300";
+            document.getElementById('code-case-32').className = "transition-colors duration-300";
+
+            switch(keySize) {
+                case 16: 
+                    nk = 4; nr = 10; 
+                    document.getElementById('code-case-16').className = "bg-blue-900/50 text-blue-200 font-bold px-1 rounded transition-colors duration-300";
+                    break;
+                case 24: 
+                    nk = 6; nr = 12; 
+                    document.getElementById('code-case-24').className = "bg-blue-900/50 text-blue-200 font-bold px-1 rounded transition-colors duration-300";
+                    break;
+                case 32: 
+                    nk = 8; nr = 14; 
+                    document.getElementById('code-case-32').className = "bg-blue-900/50 text-blue-200 font-bold px-1 rounded transition-colors duration-300";
+                    break;
+            }
+
+            // 4. Update UI Values
+            animateValue("val-Nk", parseInt(document.getElementById("val-Nk").innerText), nk, 500);
+            animateValue("val-Nr", parseInt(document.getElementById("val-Nr").innerText), nr, 500);
+            
+            document.getElementById("calc-Nr").innerText = nr;
+            
+            const totalBytes = 16 * (nr + 1);
+            document.getElementById("calc-result").innerText = totalBytes;
+
+            // 5. Update Memory Bar
+            // Max size is AES-256 (240 bytes)
+            const maxBytes = 240;
+            const widthPercent = (totalBytes / maxBytes) * 100;
+            
+            const bar = document.getElementById("memory-bar");
+            bar.style.width = `${widthPercent}%`;
+            document.getElementById("memory-text").innerText = `${totalBytes} Bytes`;
+
+            // Highlight Malloc Line briefly
+            const mallocLine = document.getElementById('code-malloc');
+            mallocLine.classList.add('text-yellow-400', 'font-bold');
+            setTimeout(() => {
+                mallocLine.classList.remove('text-yellow-400', 'font-bold');
+            }, 800);
+        }
+
+        // Helper for number animation
+        function animateValue(id, start, end, duration) {
+            if (start === end) return;
+            const range = end - start;
+            let current = start;
+            const increment = end > start ? 1 : -1;
+            const stepTime = Math.abs(Math.floor(duration / range));
+            const obj = document.getElementById(id);
+            
+            const timer = setInterval(function() {
+                current += increment;
+                obj.innerHTML = current;
+                if (current == end) {
+                    clearInterval(timer);
+                }
+            }, stepTime);
+        }
+
+        // Initialize with AES-128
+        window.onload = () => setMode(16);
+
+    </script>
+</body>
+</html>

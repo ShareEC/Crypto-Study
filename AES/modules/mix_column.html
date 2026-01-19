@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES MixColumns: Clean Lookup View</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Layout Styles */
+        .matrix-bracket { position: relative; padding: 0 10px; }
+        .matrix-bracket::before, .matrix-bracket::after {
+            content: ''; position: absolute; top: 0; bottom: 0; width: 10px; border: 2px solid #64748b;
+        }
+        .matrix-bracket::before { left: 0; border-right: 0; }
+        .matrix-bracket::after { right: 0; border-left: 0; }
+
+        .cell {
+            width: 3rem; height: 3rem;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-family: 'Roboto Mono', monospace;
+            border-radius: 4px; transition: all 0.2s; cursor: default;
+        }
+
+        .state-cell {
+            width: 2.5rem; height: 2.5rem;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid #334155; font-size: 0.75rem; font-family: 'Roboto Mono', monospace;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .state-cell:hover { border-color: #94a3b8; }
+        .col-active { background-color: #1e293b; border-color: #fbbf24; color: #fbbf24; font-weight: bold; box-shadow: 0 0 10px rgba(251, 191, 36, 0.2); }
+        
+        input.hex-input {
+            background: transparent; text-align: center; width: 100%; height: 100%;
+            outline: none; color: inherit; font-family: inherit;
+        }
+
+        /* Code Styles */
+        .code-block { font-family: 'Roboto Mono', monospace; font-size: 0.75rem; line-height: 1.6; }
+        .c-def { color: #d19a66; font-weight: bold; }
+        .c-key { color: #c678dd; font-weight: bold; }
+        .c-func { color: #61afef; }
+        .c-com { color: #7f848e; font-style: italic; }
+
+        /* Highlight classes */
+        .highlight-code-term { background-color: #2563eb; color: white; border-radius: 2px; font-weight: bold; }
+        .highlight-macro { background-color: #9333ea; color: white; }
+        .active-result { border-color: #22c55e !important; box-shadow: 0 0 0 2px #22c55e; background-color: #14532d !important; }
+
+        /* Fade Animation */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../encryption.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <div class="max-w-[1500px] w-full mb-6 flex justify-between items-end">
+        <div>
+            <h1 class="text-2xl font-bold text-green-400">Step 3-1. MixColumns : Table Lookup</h1>
+            <p class="text-slate-400 text-sm mt-1">
+                소스 코드는 <span class="text-purple-400 font-bold">gmult(a,b)</span> 매크로를 통해 
+                미리 계산된 <span class="text-yellow-400 font-bold">GF 테이블 값</span>을 참조합니다.
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <a href="Step3_AES_암호화_라운드_시각화.html" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-white transition">돌아가기</a>
+        </div>
+    </div>
+
+    <main class="max-w-[1500px] w-full grid grid-cols-12 gap-6">
+
+        <div class="col-span-12 lg:col-span-7 flex flex-col gap-6">
+            
+            <div class="bg-slate-800 rounded-xl p-4 border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-white text-sm flex items-center gap-2">
+                        <span class="bg-yellow-500 w-1 h-4 rounded"></span>
+                        State Selection
+                    </h3>
+                    <div class="flex items-center gap-2 bg-slate-900 px-2 py-1 rounded border border-slate-600">
+                        <button onclick="changeColumn(-1)" class="text-slate-400 hover:text-white font-bold px-2">◀</button>
+                        <span id="col-idx-disp" class="text-yellow-400 font-mono text-xs font-bold">Col 0</span>
+                        <button onclick="changeColumn(1)" class="text-slate-400 hover:text-white font-bold px-2">▶</button>
+                    </div>
+                </div>
+                <div class="flex justify-center">
+                    <div class="grid grid-cols-4 gap-4">
+                        <div id="state-col-0" class="flex flex-col gap-1 p-1 rounded border border-transparent hover:bg-slate-700 cursor-pointer" onclick="setColumn(0)"></div>
+                        <div id="state-col-1" class="flex flex-col gap-1 p-1 rounded border border-transparent hover:bg-slate-700 cursor-pointer" onclick="setColumn(1)"></div>
+                        <div id="state-col-2" class="flex flex-col gap-1 p-1 rounded border border-transparent hover:bg-slate-700 cursor-pointer" onclick="setColumn(2)"></div>
+                        <div id="state-col-3" class="flex flex-col gap-1 p-1 rounded border border-transparent hover:bg-slate-700 cursor-pointer" onclick="setColumn(3)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-xl flex flex-col items-center justify-center">
+                <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 select-none mb-6">
+                    <div class="text-center">
+                        <div class="mb-1 text-blue-400 font-bold text-[10px]">Fixed Matrix</div>
+                        <div class="matrix-bracket flex items-center">
+                            <div class="grid grid-cols-4 gap-1" id="matrixGrid"></div>
+                        </div>
+                    </div>
+                    <div class="text-xl text-slate-500 font-bold">×</div>
+                    <div class="text-center">
+                        <div class="mb-1 text-yellow-400 font-bold text-[10px]">Input Col</div>
+                        <div class="matrix-bracket flex items-center">
+                            <div class="grid grid-cols-1 gap-1">
+                                <div class="cell bg-slate-900 border border-yellow-500/50 text-yellow-200" id="in-box-0">--</div>
+                                <div class="cell bg-slate-900 border border-yellow-500/50 text-yellow-200" id="in-box-1">--</div>
+                                <div class="cell bg-slate-900 border border-yellow-500/50 text-yellow-200" id="in-box-2">--</div>
+                                <div class="cell bg-slate-900 border border-yellow-500/50 text-yellow-200" id="in-box-3">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-xl text-slate-500 font-bold">=</div>
+                    <div class="text-center">
+                        <div class="mb-1 text-green-400 font-bold text-[10px]">Result</div>
+                        <div class="matrix-bracket flex items-center">
+                            <div class="grid grid-cols-1 gap-1">
+                                <div class="cell bg-slate-900 border border-green-500 text-green-300 hover:bg-slate-700 cursor-pointer" id="out-box-0" onmouseenter="showBreakdown(0)">--</div>
+                                <div class="cell bg-slate-900 border border-green-500 text-green-300 hover:bg-slate-700 cursor-pointer" id="out-box-1" onmouseenter="showBreakdown(1)">--</div>
+                                <div class="cell bg-slate-900 border border-green-500 text-green-300 hover:bg-slate-700 cursor-pointer" id="out-box-2" onmouseenter="showBreakdown(2)">--</div>
+                                <div class="cell bg-slate-900 border border-green-500 text-green-300 hover:bg-slate-700 cursor-pointer" id="out-box-3" onmouseenter="showBreakdown(3)">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="breakdown-panel" class="w-full bg-slate-900/80 rounded-lg border border-slate-600 p-6 min-h-[180px] flex flex-col items-center justify-start">
+                    <span class="text-slate-500 text-sm mt-8">결과값 박스(초록색)에 마우스를 올리면 연산 흐름이 표시됩니다.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-span-12 lg:col-span-5 h-full">
+            <div class="bg-[#1e1e1e] rounded-xl shadow-xl border border-slate-700 h-full flex flex-col overflow-hidden sticky top-4">
+                <div class="bg-[#252526] px-4 py-2 text-xs font-bold text-slate-400 border-b border-[#3e3e42] flex justify-between items-center">
+                    <span>mix_columns.c</span>
+                    <span class="text-[10px] bg-purple-900 text-purple-200 px-2 py-0.5 rounded">Linked View</span>
+                </div>
+                
+                <div class="p-4 overflow-auto custom-scrollbar code-block text-gray-400">
+<pre>
+<span class="c-com">// GF(2^8) 사전 계산 테이블 참조</span>
+<span class="code-line" id="code-macro"><span class="c-def">#define</span> <span class="c-func">gmult</span>(a,b) gmult_aes[a][b]</span>
+
+<span class="c-key">void</span> <span class="c-func">mix_columns</span>(uint8_t *state) {
+    <span class="c-key">uint8_t</span> a[] = {<span class="c-num">0x02</span>, <span class="c-num">0x01</span>, <span class="c-num">0x01</span>, <span class="c-num">0x03</span>};
+    <span class="c-key">uint8_t</span> col[4], res[4];
+
+    <span class="c-key">for</span> (<span class="c-key">int</span> j = 0; j < 4; j++) {
+        <span class="c-key">for</span> (<span class="c-key">int</span> i = 0; i < 4; i++) col[i] = state[4*i+j];
+
+        <span class="c-com">// 테이블 Lookup 및 XOR 연산</span>
+        
+        <span class="c-com">// Row 0: {02, 03, 01, 01}</span>
+<span class="code-line" id="code-row-0">        res[0] = <span id="t00">gmult(a[0],col[0])</span> ^ <span id="t01">gmult(a[3],col[1])</span> ^ 
+                 <span id="t02">gmult(a[2],col[2])</span> ^ <span id="t03">gmult(a[1],col[3])</span>;</span>
+
+        <span class="c-com">// Row 1: {01, 02, 03, 01}</span>
+<span class="code-line" id="code-row-1">        res[1] = <span id="t10">gmult(a[1],col[0])</span> ^ <span id="t11">gmult(a[0],col[1])</span> ^ 
+                 <span id="t12">gmult(a[3],col[2])</span> ^ <span id="t13">gmult(a[2],col[3])</span>;</span>
+
+        <span class="c-com">// Row 2: {01, 01, 02, 03}</span>
+<span class="code-line" id="code-row-2">        res[2] = <span id="t20">gmult(a[2],col[0])</span> ^ <span id="t21">gmult(a[1],col[1])</span> ^ 
+                 <span id="t22">gmult(a[0],col[2])</span> ^ <span id="t23">gmult(a[3],col[3])</span>;</span>
+
+        <span class="c-com">// Row 3: {03, 01, 01, 02}</span>
+<span class="code-line" id="code-row-3">        res[3] = <span id="t30">gmult(a[3],col[0])</span> ^ <span id="t31">gmult(a[2],col[1])</span> ^ 
+                 <span id="t32">gmult(a[1],col[2])</span> ^ <span id="t33">gmult(a[0],col[3])</span>;</span>
+
+        <span class="c-key">for</span> (<span class="c-key">int</span> i = 0; i < 4; i++) state[4*i+j] = res[i];
+    }
+}
+</pre>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- Constants & Data ---
+        const MATRIX = [
+            [2, 3, 1, 1],
+            [1, 2, 3, 1],
+            [1, 1, 2, 3],
+            [3, 1, 1, 2]
+        ];
+        let columns = [
+            [0xD4, 0xBF, 0x5D, 0x30], 
+            [0xE0, 0xB4, 0x52, 0xAE],
+            [0xB8, 0x41, 0x11, 0xF1],
+            [0x1E, 0x27, 0x98, 0xE5]
+        ];
+        let activeColIndex = 0;
+
+        // GF Math
+        function gmult(a, b) {
+            let p = 0;
+            for (let i = 0; i < 8; i++) {
+                if ((b & 1) !== 0) p ^= a;
+                let hi_bit = (a & 0x80);
+                a = (a << 1) & 0xFF;
+                if (hi_bit) a ^= 0x1b; 
+                b >>= 1;
+            }
+            return p;
+        }
+        function toHex(val) { return val.toString(16).toUpperCase().padStart(2, '0'); }
+
+        // --- Initializers ---
+        function init() {
+            renderMatrix();
+            renderFullState();
+            updateActiveColumnView();
+        }
+
+        function renderMatrix() {
+            const grid = document.getElementById('matrixGrid');
+            grid.innerHTML = '';
+            for(let r=0; r<4; r++) {
+                for(let c=0; c<4; c++) {
+                    const div = document.createElement('div');
+                    div.className = 'cell bg-slate-700 text-blue-200 text-sm';
+                    div.innerText = toHex(MATRIX[r][c]);
+                    grid.appendChild(div);
+                }
+            }
+        }
+
+        function renderFullState() {
+            for(let c=0; c<4; c++) {
+                const container = document.getElementById(`state-col-${c}`);
+                container.innerHTML = `<div class="text-[10px] text-center text-slate-500">Col ${c}</div>`;
+                if(c === activeColIndex) {
+                    container.classList.add('bg-slate-700', 'ring-1', 'ring-yellow-500');
+                    container.classList.remove('opacity-50');
+                } else {
+                    container.classList.remove('bg-slate-700', 'ring-1', 'ring-yellow-500');
+                    container.classList.add('opacity-50');
+                }
+                for(let r=0; r<4; r++) {
+                    const div = document.createElement('div');
+                    div.className = `state-cell rounded ${c === activeColIndex ? 'col-active' : 'text-slate-400 bg-slate-800'}`;
+                    div.innerText = toHex(columns[c][r]);
+                    container.appendChild(div);
+                }
+            }
+        }
+
+        function updateActiveColumnView() {
+            const colData = columns[activeColIndex];
+            for(let i=0; i<4; i++) document.getElementById(`in-box-${i}`).innerText = toHex(colData[i]);
+            for(let r=0; r<4; r++) {
+                let sum = 0;
+                for(let c=0; c<4; c++) sum ^= gmult(MATRIX[r][c], colData[c]);
+                document.getElementById(`out-box-${r}`).innerText = toHex(sum);
+            }
+        }
+
+        // --- Interaction: Simple Breakdown ---
+        function showBreakdown(rowIndex) {
+            document.querySelectorAll('.active-result').forEach(el => el.classList.remove('active-result'));
+            document.getElementById(`out-box-${rowIndex}`).classList.add('active-result');
+
+            document.getElementById('code-macro').classList.add('highlight-macro');
+            document.querySelectorAll('.highlight-code-term').forEach(el => el.classList.remove('highlight-code-term'));
+            
+            const colData = columns[activeColIndex];
+            const rowCoeffs = MATRIX[rowIndex];
+            
+            for(let i=0; i<4; i++) {
+                const termEl = document.getElementById(`t${rowIndex}${i}`);
+                if(termEl) termEl.classList.add('highlight-code-term');
+            }
+
+            // Generate CLEAN Layout
+            let html = `<div class="w-full text-center fade-in">`;
+            
+            // Header Description
+            html += `<div class="text-xs text-slate-400 mb-6 border-b border-slate-700 pb-2 flex justify-between px-4">`;
+            html += `<span class="font-bold text-white">res[${rowIndex}] Calculation</span>`;
+            html += `<span class="text-purple-400">Values retrieved from Pre-computed GF Table</span>`;
+            html += `</div>`;
+            
+            html += `<div class="flex items-center justify-center gap-2 md:gap-4 overflow-x-auto pb-4">`;
+            let finalRes = 0;
+            
+            for(let i=0; i<4; i++) {
+                const p = gmult(rowCoeffs[i], colData[i]);
+                finalRes ^= p;
+                
+                // Coordinates for display
+                const coeffHex = toHex(rowCoeffs[i]);
+                const valHex = toHex(colData[i]);
+
+                html += `<div class="flex flex-col items-center gap-2 min-w-[70px]">`;
+                
+                // Function Call (Clean)
+                html += `<div class="text-[11px] text-purple-300 font-mono font-bold">gmult(${coeffHex}, ${valHex})</div>`;
+                
+                // Simple Arrow
+                html += `<div class="text-[10px] text-slate-600">↓</div>`;
+                
+                // Result Box (No extra container)
+                html += `<div class="text-base font-bold text-blue-300 bg-slate-800 px-3 py-2 rounded-lg border border-blue-500/40 shadow-md">${toHex(p)}</div>`;
+                
+                html += `</div>`; // End Item
+
+                if(i < 3) html += `<div class="text-2xl font-bold text-slate-600 pt-6">⊕</div>`;
+            }
+            
+            html += `<div class="text-2xl font-bold text-slate-500 pt-6 px-3">=</div>`;
+            
+            // Final Result
+            html += `<div class="flex flex-col items-center gap-1 pt-6">`;
+            html += `<div class="text-xl font-bold text-green-400 bg-slate-800 px-4 py-2 rounded-lg border border-green-500 shadow-lg glow">${toHex(finalRes)}</div>`;
+            html += `</div>`;
+
+            html += `</div></div>`;
+
+            document.getElementById('breakdown-panel').innerHTML = html;
+        }
+
+        function setColumn(idx) {
+            activeColIndex = idx;
+            renderFullState();
+            updateActiveColumnView();
+            document.getElementById('breakdown-panel').innerHTML = `<span class="text-slate-500 text-sm mt-8">결과값 박스(초록색)에 마우스를 올리면 연산 흐름이 표시됩니다.</span>`;
+            document.querySelectorAll('.active-result').forEach(el => el.classList.remove('active-result'));
+            document.querySelectorAll('.highlight-code-term').forEach(el => el.classList.remove('highlight-code-term'));
+        }
+        function changeColumn(delta) {
+            let next = activeColIndex + delta;
+            if(next < 0) next = 3; if(next > 3) next = 0;
+            setColumn(next);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

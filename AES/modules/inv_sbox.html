@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES Inverse S-Box 시각화</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Table Styles */
+        .sbox-cell {
+            width: 1.5rem; height: 1.5rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.6rem; border: 1px solid #334155;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .sbox-cell:hover { transform: scale(1.2); z-index: 10; border-color: white; }
+        
+        /* Highlight Styles */
+        .sbox-cell.active-sbox { background-color: #3b82f6; color: white; border-color: #60a5fa; font-weight: bold; box-shadow: 0 0 10px #3b82f6; }
+        .sbox-cell.active-inv { background-color: #8b5cf6; color: white; border-color: #a78bfa; font-weight: bold; box-shadow: 0 0 10px #8b5cf6; }
+        
+        .sbox-header { background-color: #1e293b; color: #94a3b8; font-weight: bold; font-size: 0.6rem; }
+        
+        /* Arrow Animation */
+        .arrow-path {
+            stroke-dasharray: 10;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -20; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6 min-h-screen flex flex-col items-center">
+
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-6xl w-full mb-6 text-center">
+        <h1 class="text-3xl font-bold text-purple-400 mb-2">역 S-Box (Inverse S-Box) 생성 원리</h1>
+        <p class="text-slate-400 text-sm">
+            S-Box의 결과를 거꾸로 추적하여 원래 값을 복원하는 테이블입니다.<br>
+            <span class="text-blue-400 font-bold">S-Box[x] = y</span> 라면, <span class="text-purple-400 font-bold">Inv_S-Box[y] = x</span> 가 성립합니다.
+        </p>
+    </header>
+
+    <main class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <!-- Input & Visualization -->
+        <section class="lg:col-span-2 bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+            <div class="flex flex-col md:flex-row items-center justify-center gap-8">
+                
+                <!-- Step 1: Input -->
+                <div class="text-center">
+                    <div class="text-xs text-slate-400 mb-1 uppercase">Input (x)</div>
+                    <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono">0x</span>
+                        <input type="text" id="inputHex" value="53" maxlength="2" 
+                            class="bg-slate-900 border border-slate-600 text-white pl-8 pr-3 py-2 w-24 rounded text-center text-xl font-bold mono focus:border-blue-500 outline-none uppercase"
+                            onkeyup="updateSimulation()">
+                    </div>
+                </div>
+
+                <!-- Arrow 1 -->
+                <div class="hidden md:block">
+                    <svg width="60" height="20" class="text-slate-600">
+                        <line x1="0" y1="10" x2="55" y2="10" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)" />
+                        <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="currentColor" /></marker></defs>
+                    </svg>
+                </div>
+
+                <!-- Step 2: S-Box Result -->
+                <div class="text-center bg-blue-900/30 p-4 rounded-lg border border-blue-500/50">
+                    <div class="text-xs text-blue-300 mb-1 uppercase">S-Box[x]</div>
+                    <div class="text-3xl font-bold text-blue-400 mono" id="sboxResult">--</div>
+                    <div class="text-[10px] text-slate-400 mt-1">암호화 결과 (y)</div>
+                </div>
+
+                <!-- Arrow 2 (Reversing) -->
+                <div class="hidden md:block text-slate-500 flex flex-col items-center">
+                    <div class="text-[10px] mb-1">Inverse</div>
+                    <svg width="60" height="20" class="text-purple-500">
+                        <line x1="0" y1="10" x2="55" y2="10" stroke="currentColor" stroke-width="2" marker-end="url(#arrow-p)" class="arrow-path"/>
+                        <defs><marker id="arrow-p" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="currentColor" /></marker></defs>
+                    </svg>
+                </div>
+
+                <!-- Step 3: Inv S-Box Result -->
+                <div class="text-center bg-purple-900/30 p-4 rounded-lg border border-purple-500/50">
+                    <div class="text-xs text-purple-300 mb-1 uppercase">Inv_S-Box[y]</div>
+                    <div class="text-3xl font-bold text-purple-400 mono" id="invSboxResult">--</div>
+                    <div class="text-[10px] text-slate-400 mt-1">복호화 결과 (x)</div>
+                </div>
+                 
+                 <!-- Equals -->
+                 <div class="text-2xl font-bold text-green-500">=</div>
+
+                 <!-- Final Check -->
+                 <div class="text-center">
+                    <div class="text-xs text-slate-400 mb-1 uppercase">Original</div>
+                    <div class="text-xl font-bold text-green-400 mono" id="finalResult">--</div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- S-Box Table -->
+        <section class="bg-slate-800 rounded-xl p-4 shadow-lg border border-slate-700 flex flex-col h-[520px]">
+            <h2 class="text-sm font-bold text-blue-400 mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span> S-Box (Encryption)
+            </h2>
+            <div class="overflow-auto custom-scrollbar flex-1 bg-slate-900 rounded p-1">
+                <div id="sboxGrid" class="grid grid-cols-17 gap-px"></div>
+            </div>
+            <div class="mt-2 text-[10px] text-slate-500 text-center">
+                입력값 x를 인덱스로 사용하여 y를 찾습니다.
+            </div>
+        </section>
+
+        <!-- Inv S-Box Table -->
+        <section class="bg-slate-800 rounded-xl p-4 shadow-lg border border-slate-700 flex-1 flex flex-col h-[520px]">
+            <h2 class="text-sm font-bold text-purple-400 mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span> Inverse S-Box (Decryption)
+            </h2>
+            <div class="overflow-auto custom-scrollbar flex-1 bg-slate-900 rounded p-1">
+                <div id="invSboxGrid" class="grid grid-cols-17 gap-px"></div>
+            </div>
+            <div class="mt-2 text-[10px] text-slate-500 text-center">
+                암호값 y를 인덱스로 사용하여 원본 x를 복원합니다.
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- AES Logic ---
+        
+        // 1. GF(2^8) Multiply
+        function gmult(a, b) {
+            let p = 0;
+            for (let i = 0; i < 8; i++) {
+                if ((b & 1) !== 0) p ^= a;
+                let hi_bit_set = (a & 0x80);
+                a = (a << 1) & 0xFF;
+                if (hi_bit_set !== 0) a ^= 0x1B;
+                b >>= 1;
+            }
+            return p;
+        }
+
+        // 2. Affine Transform
+        function rotl8(x, shift) { return ((x << shift) | (x >> (8 - shift))) & 0xFF; }
+        function affineTransform(byteVal) {
+            let s = byteVal;
+            let mat_mul = s ^ rotl8(s, 1) ^ rotl8(s, 2) ^ rotl8(s, 3) ^ rotl8(s, 4);
+            return mat_mul ^ 0x63;
+        }
+
+        // 3. Generate S-Box
+        let SBOX = new Array(256);
+        let INV_SBOX = new Array(256);
+
+        function initTables() {
+            // Generate S-Box
+            for(let i=0; i<256; i++) {
+                let inv = 0;
+                if(i !== 0) {
+                    for(let j=1; j<256; j++) {
+                        if(gmult(i, j) === 1) { inv = j; break; }
+                    }
+                }
+                SBOX[i] = affineTransform(inv);
+            }
+            
+            // Generate Inverse S-Box (Reverse Mapping)
+            for(let i=0; i<256; i++) {
+                INV_SBOX[SBOX[i]] = i;
+            }
+        }
+
+        // --- UI Functions ---
+
+        function toHex(n) {
+            return n.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function renderGrid(containerId, data, type) {
+            const grid = document.getElementById(containerId);
+            grid.innerHTML = '';
+            
+            // CSS Grid Setup
+            // grid-cols-17 in Tailwind config or manual style needed
+            // Let's use style attribute for specific grid
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(17, minmax(0, 1fr))';
+            grid.style.gap = '1px';
+
+            // Top Header
+            grid.innerHTML += `<div class="sbox-cell sbox-header">\\</div>`;
+            for(let i=0; i<16; i++) {
+                grid.innerHTML += `<div class="sbox-cell sbox-header">${i.toString(16).toUpperCase()}</div>`;
+            }
+
+            // Data Rows
+            for(let r=0; r<16; r++) {
+                // Row Header
+                grid.innerHTML += `<div class="sbox-cell sbox-header">${r.toString(16).toUpperCase()}</div>`;
+                
+                for(let c=0; c<16; c++) {
+                    const idx = (r << 4) | c;
+                    const val = data[idx];
+                    const hexVal = toHex(val);
+                    
+                    const div = document.createElement('div');
+                    div.className = `sbox-cell bg-slate-800 text-slate-400`;
+                    div.id = `${type}-cell-${idx}`; // ID by index (input value)
+                    div.innerText = hexVal;
+                    
+                    // Click Interaction
+                    div.onclick = () => {
+                        if(type === 'sbox') {
+                            document.getElementById('inputHex').value = toHex(idx);
+                        } else {
+                            // For inv-sbox, clicking means we are selecting the encrypted value 'y'
+                            // We need to find what 'x' produced this 'y'.
+                            // Inverse S-Box input IS 'y'.
+                            // So if user clicks index 0xED in inv-sbox, input should be updated to result (0x53)??
+                            // No, let's keep consistent: User inputs X.
+                            // If user clicks Inv-SBox cell at index Y, it means Encrypted value is Y.
+                            // We reverse it to find X and set input.
+                            const x = INV_SBOX[idx];
+                            document.getElementById('inputHex').value = toHex(x); // Set original input
+                        }
+                        updateSimulation();
+                    };
+                    grid.appendChild(div);
+                }
+            }
+        }
+
+        function highlight(type, index) {
+            // Remove old
+            document.querySelectorAll(`.${type}-cell.active-sbox, .${type}-cell.active-inv`).forEach(el => {
+                el.classList.remove('active-sbox', 'active-inv');
+            });
+
+            const cell = document.getElementById(`${type}-cell-${index}`);
+            if(cell) {
+                const activeClass = type === 'sbox' ? 'active-sbox' : 'active-inv';
+                cell.classList.add(activeClass);
+                cell.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }
+        }
+
+        function updateSimulation() {
+            const inputEl = document.getElementById('inputHex');
+            const inputVal = parseInt(inputEl.value, 16);
+
+            if (isNaN(inputVal) || inputVal < 0 || inputVal > 255) return;
+
+            const encVal = SBOX[inputVal]; // y
+            const decVal = INV_SBOX[encVal]; // x (should match input)
+
+            // Update Text
+            document.getElementById('sboxResult').innerText = toHex(encVal);
+            document.getElementById('invSboxResult').innerText = toHex(decVal);
+            document.getElementById('finalResult').innerText = toHex(inputVal);
+
+            // Highlight Tables
+            // S-Box: Input is index -> shows Value
+            highlight('sbox', inputVal);
+            
+            // Inv S-Box: Input is Encrypted Value -> shows Original Value
+            // Grid ID is by index. Inv SBox index is the encrypted value.
+            highlight('invSbox', encVal);
+        }
+
+        // Init
+        window.onload = function() {
+            initTables();
+            renderGrid('sboxGrid', SBOX, 'sbox');
+            renderGrid('invSboxGrid', INV_SBOX, 'invSbox');
+            updateSimulation();
+        };
+
+    </script>
+</body>
+</html>

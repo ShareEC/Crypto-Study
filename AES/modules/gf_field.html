@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GF(2⁸) 곱셈 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Highlighting Classes */
+        .highlight-change { background-color: #DCFCE7; } /* Green-100 */
+        .code-active { color: #166534; font-weight: bold; background-color: #dcfce7; padding: 0 2px; border-radius: 2px;} 
+        .code-mod-active { color: #991B1B; font-weight: bold; background-color: #fee2e2; padding: 0 2px; border-radius: 2px;} 
+        .code-inactive { color: #CBD5E1; text-decoration: line-through; } 
+        .code-default { color: #475569; }
+
+        /* Table Styles */
+        .gmult-cell {
+            width: 2rem; height: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; border: 1px solid #334155;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .gmult-cell:hover { background-color: #475569; }
+        .gmult-cell.highlight { 
+            background-color: #10B981; color: white; 
+            border-color: #059669; font-weight: bold; 
+            transform: scale(1.2); z-index: 20;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+        }
+        .gmult-cell.crosshair {
+            background-color: rgba(99, 102, 241, 0.2);
+            border-color: #6366f1;
+            z-index: 10;
+        }
+        .gmult-header { background-color: #1e293b; color: #94a3b8; font-weight: bold; position: sticky; top: 0; z-index: 30; }
+        .gmult-row-header { background-color: #1e293b; color: #94a3b8; font-weight: bold; position: sticky; left: 0; z-index: 30; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Variable State Styles */
+        .arrow-icon { color: #3b82f6; font-weight: bold; margin: 0 4px; }
+        .val-prev { color: #94a3b8; text-decoration: line-through; opacity: 0.6; font-size: 0.85em; }
+        .val-curr-hex { color: #1d4ed8; font-weight: bold; font-size: 0.95em; }
+        .val-curr-bin { color: #2563eb; background-color: white; padding: 0 4px; border-radius: 2px; border: 1px solid #bfdbfe; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen py-8 px-4 flex flex-col items-center">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+
+    <div class="max-w-6xl w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden mb-8">
+        
+        <div class="bg-slate-800 text-white p-6 text-center">
+            <h1 class="text-2xl font-bold mb-2">GF(2⁸) 곱셈 단계별 분석기</h1>
+            <p class="text-slate-300 text-sm">입력한 C 코드가 내부에서 어떻게 작동하는지 8단계로 보여줍니다.</p>
+        </div>
+
+        <div class="p-6 bg-slate-100 border-b border-slate-200 flex flex-wrap gap-6 justify-center items-end">
+            <div>
+                <label class="block text-sm font-bold text-slate-600 mb-1">입력값 A (피승수)</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">0x</span>
+                    <input type="text" id="inputA" value="57" maxlength="2" class="mono pl-8 pr-3 py-2 w-24 border border-slate-300 rounded focus:outline-none focus:border-blue-500 uppercase font-bold text-lg text-center">
+                </div>
+            </div>
+            <div class="text-slate-400 font-bold pb-2">×</div>
+            <div>
+                <label class="block text-sm font-bold text-slate-600 mb-1">입력값 B (승수)</label>
+                <div class="relative">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">0x</span>
+                    <input type="text" id="inputB" value="83" maxlength="2" class="mono pl-8 pr-3 py-2 w-24 border border-slate-300 rounded focus:outline-none focus:border-blue-500 uppercase font-bold text-lg text-center">
+                </div>
+            </div>
+            <button onclick="runSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition-colors">
+                계산 및 분석 시작
+            </button>
+        </div>
+
+        <div class="p-4 bg-blue-50 text-blue-900 font-bold text-center border-b border-blue-100 hidden" id="resultSummary">
+            최종 결과 (p): <span id="finalResult" class="mono text-xl">--</span>
+        </div>
+
+        <div class="p-6 overflow-x-auto">
+            <table class="w-full text-sm text-left text-slate-600 table-fixed">
+                <thead class="text-xs text-slate-700 uppercase bg-slate-200">
+                    <tr>
+                        <th class="px-4 py-3 rounded-tl-lg text-center w-12">i</th>
+                        <th class="px-4 py-3 w-[40%]">변수 상태 (HEX / BIN 변화)</th>
+                        <th class="px-4 py-3 w-[30%]">실행된 C 코드</th>
+                        <th class="px-4 py-3 rounded-tr-lg">설명</th>
+                    </tr>
+                </thead>
+                <tbody id="stepsBody">
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-slate-400">
+                            값을 입력하고 [분석 시작] 버튼을 눌러주세요.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="p-6 bg-slate-50 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-500">
+            <div>
+                <h4 class="font-bold text-slate-700 mb-2">💡 색상 범례</h4>
+                <ul class="space-y-1">
+                    <li class="flex items-center gap-2"><span class="w-3 h-3 bg-green-100 border border-green-200 block"></span> <span class="text-green-700 font-bold">초록색 배경:</span> 덧셈(XOR) 실행됨</li>
+                    <li class="flex items-center gap-2"><span class="w-3 h-3 bg-red-100 border border-red-200 block"></span> <span class="text-red-700 font-bold">빨간색 배경:</span> Modulo 연산 실행됨</li>
+                </ul>
+            </div>
+            <div class="mono bg-slate-800 text-slate-300 p-3 rounded text-[10px] leading-tight">
+                // Logic<br>
+                if (b & 1) p ^= a;<br>
+                hbs = a & 0x80; a <<= 1;<br>
+                if (hbs) a ^= 0x1b;<br>
+                b >>= 1;
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl w-full bg-slate-800 rounded-xl shadow-xl border border-slate-700 p-6 flex flex-col h-[600px]">
+        <div class="flex justify-between items-center mb-4 shrink-0">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <span class="w-2 h-6 bg-indigo-500 rounded"></span>
+                전체 곱셈 테이블 (gmult_aes[256][256])
+            </h2>
+            <button onclick="generateFullTable()" id="genTableBtn" class="bg-indigo-600 hover:bg-indigo-500 text-xs px-4 py-2 rounded text-white font-bold transition shadow-lg flex items-center gap-2">
+                테이블 생성 (Click)
+            </button>
+        </div>
+        
+        <div class="relative flex-1 bg-slate-900 rounded border border-slate-700 overflow-hidden">
+             <div id="tablePlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+                <p class="text-sm">데이터가 많으므로 버튼을 눌러 생성해주세요.</p>
+            </div>
+            <div id="gmultGrid" class="hidden grid grid-cols-[repeat(17,minmax(2rem,1fr))] w-full h-full overflow-auto custom-scrollbar font-mono text-xs bg-slate-900"></div>
+        </div>
+    </div>
+
+    <script>
+        function toBin(num) {
+            let bin = num.toString(2).padStart(8, '0');
+            return bin.split('').map(b => 
+                b === '1' ? `<span class="bit-on">1</span>` : `<span class="bit-off">0</span>`
+            ).join('');
+        }
+
+        function toHex(num) {
+            return "0x" + num.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function renderState(label, prev, curr) {
+            const hexPrev = toHex(prev);
+            const hexCurr = toHex(curr);
+            const binPrev = toBin(prev);
+            const binCurr = toBin(curr);
+            
+            if (prev === curr) {
+                // 변화 없음
+                return `
+                    <div class="flex items-center w-full border-b border-slate-100 last:border-0 py-2">
+                        <span class="font-bold text-slate-500 w-8 text-base">${label}:</span>
+                        <div class="flex-1 flex items-center justify-end gap-4 font-mono text-sm">
+                            <span class="text-slate-600 font-bold">${hexCurr}</span>
+                            <span class="text-slate-400">${binCurr}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 변화 있음
+                return `
+                    <div class="flex items-center w-full border-b border-slate-100 last:border-0 py-2 bg-blue-50/50 -mx-2 px-2 rounded">
+                        <span class="font-bold text-blue-700 w-8 text-base">${label}:</span>
+                        <div class="flex-1 flex items-center justify-end font-mono gap-4">
+                            
+                            <div class="flex items-center gap-1.5">
+                                <span class="val-prev text-xs">${hexPrev}</span>
+                                <span class="arrow-icon">→</span>
+                                <span class="val-curr-hex text-sm">${hexCurr}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5">
+                                <span class="val-prev text-[10px]">${binPrev}</span>
+                                <span class="arrow-icon">→</span>
+                                <span class="val-curr-bin text-xs">${binCurr}</span>
+                            </div>
+
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function gmult(a, b) {
+            let p = 0;
+            for (let i = 0; i < 8; i++) {
+                if ((b & 1) !== 0) p ^= a;
+                let hi_bit_set = (a & 0x80);
+                a = (a << 1) & 0xFF;
+                if (hi_bit_set !== 0) a ^= 0x1B;
+                b >>= 1;
+            }
+            return p;
+        }
+
+        function runSimulation() {
+            const inputA = parseInt(document.getElementById('inputA').value, 16);
+            const inputB = parseInt(document.getElementById('inputB').value, 16);
+
+            if (isNaN(inputA) || isNaN(inputB)) {
+                alert("올바른 16진수 값을 입력해주세요.");
+                return;
+            }
+
+            highlightTable(inputA, inputB);
+
+            const tbody = document.getElementById('stepsBody');
+            tbody.innerHTML = '';
+
+            let a = inputA;
+            let b = inputB;
+            let p = 0;
+            
+            // Initial State
+            let html = `
+                <tr class="border-b bg-slate-50">
+                    <td class="px-4 py-3 font-bold text-center text-slate-500">Init</td>
+                    <td class="px-4 py-3">
+                        ${renderState('p', p, p)}
+                        ${renderState('a', a, a)}
+                        ${renderState('b', b, b)}
+                    </td>
+                    <td class="px-4 py-3 text-slate-400 mono text-xs">-</td>
+                    <td class="px-4 py-3 text-slate-500 text-xs">초기 상태</td>
+                </tr>
+            `;
+
+            for (let i = 0; i < 8; i++) {
+                let rowClass = "";
+                let desc = [];
+                
+                const prev_p = p;
+                const prev_a = a;
+                const prev_b = b;
+
+                // 1. Calculate P
+                const b_lsb = b & 1;
+                const p_xor_code = b_lsb ? `<div class="code-active">if (b & 1) p ^= a;</div>` : `<div class="code-inactive">if (b & 1) p ^= a;</div>`;
+                
+                if (b_lsb) {
+                    p ^= a; 
+                    desc.push(`b의 끝이 <b>1</b>이므로 a를 더함(XOR)`);
+                    rowClass = "highlight-change";
+                }
+
+                // 2. Prepare A
+                const hbs = a & 0x80;
+                a = (a << 1) & 0xFF;
+                
+                let mod_code = "";
+                if (hbs) {
+                    a ^= 0x1b;
+                    mod_code = `<div class="code-mod-active">if (hbs) a ^= 0x1b;</div>`;
+                    desc.push(`a 오버플로우 발생! (기약다항식 XOR)`);
+                    if (rowClass === "") rowClass = "bg-red-50"; 
+                } else {
+                    mod_code = `<div class="code-inactive">if (hbs) a ^= 0x1b;</div>`;
+                }
+
+                // 3. Prepare B
+                b >>= 1;
+
+                html += `
+                    <tr class="border-b border-slate-100 ${rowClass} hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-3 font-bold text-center border-r border-slate-200 text-slate-600">${i}</td>
+                        
+                        <td class="px-4 py-3 border-r border-slate-200">
+                            ${renderState('p', prev_p, p)}
+                            ${renderState('a', prev_a, a)}
+                            ${renderState('b', prev_b, b)}
+                        </td>
+
+                        <td class="px-4 py-3 mono text-xs leading-5 bg-slate-50 border-r border-slate-200">
+                            ${p_xor_code}
+                            <div class="code-default">hbs = a & 0x80;</div>
+                            <div class="code-default">a <<= 1;</div>
+                            ${mod_code}
+                            <div class="code-default">b >>= 1;</div>
+                        </td>
+
+                        <td class="px-4 py-3 text-xs text-slate-600">
+                            ${desc.length > 0 ? desc.join('<br>') : '<span class="text-slate-400">특이 사항 없음 (Shift만 수행)</span>'}
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = html;
+            document.getElementById('resultSummary').classList.remove('hidden');
+            document.getElementById('finalResult').innerText = toHex(p);
+        }
+
+        // --- Table Logic ---
+        let isTableGenerated = false;
+
+        function generateFullTable() {
+            if(isTableGenerated) return;
+            const grid = document.getElementById('gmultGrid');
+            const placeholder = document.getElementById('tablePlaceholder');
+            const btn = document.getElementById('genTableBtn');
+
+            placeholder.classList.add('hidden');
+            grid.classList.remove('hidden');
+            grid.innerHTML = '';
+
+            grid.innerHTML += `<div class="gmult-cell gmult-header bg-slate-700 z-20">\\</div>`;
+            for(let i=0; i<256; i++) {
+                grid.innerHTML += `<div class="gmult-cell gmult-header">${i.toString(16).toUpperCase().padStart(2, '0')}</div>`;
+            }
+            grid.style.gridTemplateColumns = '3rem repeat(256, minmax(2rem, 1fr))';
+
+            let htmlBuffer = '';
+            for(let r=0; r<256; r++) {
+                htmlBuffer += `<div class="gmult-cell gmult-row-header">${r.toString(16).toUpperCase().padStart(2, '0')}</div>`;
+                for(let c=0; c<256; c++) {
+                    const res = gmult(r, c);
+                    htmlBuffer += `<div class="gmult-cell text-slate-400 bg-slate-800 border-slate-700" id="cell-${r}-${c}" onclick="selectCell(${r}, ${c})">${res.toString(16).toUpperCase().padStart(2, '0')}</div>`;
+                }
+            }
+            grid.innerHTML += htmlBuffer;
+            isTableGenerated = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            const a = parseInt(document.getElementById('inputA').value, 16);
+            const b = parseInt(document.getElementById('inputB').value, 16);
+            if(!isNaN(a) && !isNaN(b)) highlightTable(a, b);
+        }
+
+        function highlightTable(row, col) {
+            if(!isTableGenerated) return;
+            document.querySelectorAll('.gmult-cell.highlight').forEach(el => el.classList.remove('highlight'));
+            document.querySelectorAll('.gmult-cell.crosshair').forEach(el => el.classList.remove('crosshair'));
+
+            for(let c=0; c<256; c++) document.getElementById(`cell-${row}-${c}`)?.classList.add('crosshair');
+            for(let r=0; r<256; r++) document.getElementById(`cell-${r}-${col}`)?.classList.add('crosshair');
+
+            const target = document.getElementById(`cell-${row}-${col}`);
+            if(target) {
+                target.classList.add('highlight');
+                target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }
+        }
+
+        function selectCell(r, c) {
+            document.getElementById('inputA').value = r.toString(16).toUpperCase().padStart(2, '0');
+            document.getElementById('inputB').value = c.toString(16).toUpperCase().padStart(2, '0');
+            runSimulation();
+        }
+
+        window.onload = function() { runSimulation(); }
+    </script>
+</body>
+</html>

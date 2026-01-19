@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES 모드별 구조도 (Block View)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&family=Fira+Code:wght@400;700&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Fira Code', monospace; }
+
+        /* --- 1. AES Engine Box --- */
+        .aes-box {
+            border: 2px solid #22c55e;
+            background-color: #f0fdf4;
+            border-radius: 8px;
+            padding: 10px;
+            width: 140px;
+            color: #1e293b;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 20;
+        }
+        .aes-title { font-weight: bold; font-size: 0.9rem; color: #15803d; margin-bottom: 5px; }
+        .aes-step {
+            border: 1px solid #86efac; background: white;
+            width: 100%; text-align: center;
+            font-size: 0.65rem; padding: 2px 0; margin: 1px 0;
+            color: #15803d; font-family: monospace;
+        }
+        .aes-loop {
+            border: 1px dashed #22c55e; padding: 3px; width: 100%;
+            margin: 3px 0; border-radius: 4px; background: rgba(34, 197, 94, 0.05);
+        }
+
+        /* --- 2. Data Blocks --- */
+        .data-block {
+            width: 100px; padding: 8px; text-align: center;
+            border-radius: 6px; font-weight: bold; font-size: 0.8rem;
+            position: relative; z-index: 20;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .block-plain { background: #334155; color: white; border: 1px solid #475569; }
+        .block-cipher { background: #0f172a; color: #67e8f9; border: 1px solid #06b6d4; }
+        .block-iv { background: #581c87; color: #e9d5ff; border: 1px solid #a855f7; width: 60px; font-size: 0.7rem; }
+        .block-ctr { background: #be185d; color: #ffe4e6; border: 1px solid #f43f5e; }
+        
+        .xor-circle {
+            width: 30px; height: 30px; border-radius: 50%;
+            background: #1e293b; border: 2px solid #94a3b8;
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; z-index: 20;
+        }
+
+        /* --- 3. Layout & Lines --- */
+        .mode-container {
+            display: flex; gap: 100px; justify-content: center; padding: 40px;
+            position: relative; min-height: 500px;
+        }
+        .block-column {
+            display: flex; flex-direction: column; align-items: center; gap: 40px;
+            position: relative;
+        }
+        
+        /* SVG Layer */
+        #svg-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+        }
+        .arrow-line { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+        .arrow-feedback { stroke: #ef4444; stroke-width: 2; fill: none; stroke-dasharray: 6; marker-end: url(#arrow-red); animation: dash 1s linear infinite; }
+
+        @keyframes dash { to { stroke-dashoffset: -12; } }
+
+        /* Tabs */
+        .nav-btn { padding: 10px 20px; color: #94a3b8; border-bottom: 2px solid transparent; transition: all 0.2s; }
+        .nav-btn.active { color: #fff; border-bottom-color: #22c55e; font-weight: bold; }
+
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <div class="w-full bg-slate-900 border-b border-slate-700 p-4 flex justify-center">
+        <div class="max-w-5xl w-full flex justify-between items-center">
+            <h1 class="text-xl font-bold text-white">AES 모드별 구조도 (Block View)</h1>
+            <div class="flex gap-2">
+                <button onclick="setMode('ECB')" id="btn-ECB" class="nav-btn active">1. ECB</button>
+                <button onclick="setMode('CBC')" id="btn-CBC" class="nav-btn">2. CBC</button>
+                <button onclick="setMode('CTR')" id="btn-CTR" class="nav-btn">3. CTR</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-3xl w-full text-center mt-6 mb-2">
+        <p id="desc-text" class="text-slate-400 text-sm bg-slate-800 p-3 rounded-lg border border-slate-700">
+            </p>
+    </div>
+
+    <div class="max-w-6xl w-full bg-slate-800/50 rounded-xl border border-slate-700 mt-4 relative" id="diagram-area">
+        
+        <svg id="svg-layer">
+            <defs>
+                <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#64748b"/></marker>
+                <marker id="arrow-red" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#ef4444"/></marker>
+            </defs>
+            </svg>
+
+        <div id="content-container" class="mode-container">
+            </div>
+
+    </div>
+
+    <script>
+        const AES_ENGINE_HTML = `
+            <div class="aes-box">
+                <div class="aes-title">AES Encrypt</div>
+                <div class="aes-step">add_round_key</div>
+                <div class="aes-loop">
+                    <div class="aes-step">sub_bytes</div>
+                    <div class="aes-step">shift_rows</div>
+                    <div class="aes-step">mix_columns</div>
+                    <div class="aes-step">add_round_key</div>
+                </div>
+                <div class="aes-step">Final Round</div>
+            </div>
+        `;
+
+        const MODES = {
+            ECB: {
+                desc: "<strong>ECB (Electronic Codebook):</strong> <span class='text-yellow-400'>평문</span>이 <span class='text-green-400'>AES 박스</span>로 바로 들어갑니다. 블록 간 연결이 없어 패턴이 노출됩니다.",
+                html: `
+                    <div class="block-column">
+                        <div class="data-block block-plain" id="ecb-p1">Plain 1</div>
+                        <div id="ecb-aes1">${AES_ENGINE_HTML}</div>
+                        <div class="data-block block-cipher" id="ecb-c1">Cipher 1</div>
+                    </div>
+                    <div class="block-column">
+                        <div class="data-block block-plain" id="ecb-p2">Plain 2</div>
+                        <div id="ecb-aes2">${AES_ENGINE_HTML}</div>
+                        <div class="data-block block-cipher" id="ecb-c2">Cipher 2</div>
+                    </div>
+                `,
+                connections: [
+                    { from: 'ecb-p1', to: 'ecb-aes1' }, { from: 'ecb-aes1', to: 'ecb-c1' },
+                    { from: 'ecb-p2', to: 'ecb-aes2' }, { from: 'ecb-aes2', to: 'ecb-c2' }
+                ]
+            },
+            CBC: {
+                desc: "<strong>CBC (Cipher Block Chaining):</strong> <span class='text-yellow-400'>평문</span>이 AES 박스에 들어가기 전 <span class='text-blue-400 font-bold'>XOR</span>을 거칩니다. <span class='text-red-400'>빨간 점선</span>을 통해 앞 블록의 결과가 뒤로 넘어갑니다.",
+                html: `
+                    <div class="block-column">
+                        <div class="flex items-center gap-2">
+                            <div class="data-block block-iv" id="cbc-iv">IV</div>
+                            <div class="text-slate-500">→</div>
+                            <div class="xor-circle" id="cbc-xor1">⊕</div>
+                            <div class="text-slate-500">←</div>
+                            <div class="data-block block-plain" id="cbc-p1">Plain 1</div>
+                        </div>
+                        <div id="cbc-aes1">${AES_ENGINE_HTML}</div>
+                        <div class="data-block block-cipher" id="cbc-c1">Cipher 1</div>
+                    </div>
+
+                    <div class="block-column">
+                        <div class="flex items-center gap-2">
+                            <div class="w-[60px]"></div> 
+                            <div class="text-slate-500 w-4"></div>
+                            <div class="xor-circle" id="cbc-xor2">⊕</div>
+                            <div class="text-slate-500">←</div>
+                            <div class="data-block block-plain" id="cbc-p2">Plain 2</div>
+                        </div>
+                        <div id="cbc-aes2">${AES_ENGINE_HTML}</div>
+                        <div class="data-block block-cipher" id="cbc-c2">Cipher 2</div>
+                    </div>
+                `,
+                connections: [
+                    { from: 'cbc-xor1', to: 'cbc-aes1' }, { from: 'cbc-aes1', to: 'cbc-c1' },
+                    { from: 'cbc-xor2', to: 'cbc-aes2' }, { from: 'cbc-aes2', to: 'cbc-c2' },
+                    // [UPDATED] Feedback: Cipher 1 Bottom -> XOR 2 Left
+                    { from: 'cbc-c1', to: 'cbc-xor2', type: 'feedback' }
+                ]
+            },
+            CTR: {
+                desc: "<strong>CTR (Counter Mode):</strong> <span class='text-yellow-400'>평문</span>은 AES 박스에 <strong>들어가지 않습니다.</strong> <span class='text-pink-500'>카운터(숫자)</span>가 AES 박스에 들어가 난수를 만들고, 밖에서 평문과 합쳐집니다.",
+                html: `
+                    <div class="block-column">
+                        <div class="data-block block-ctr" id="ctr-cnt1">Counter 1</div>
+                        <div id="ctr-aes1">${AES_ENGINE_HTML}</div>
+                        <div class="flex items-center gap-2 mt-4">
+                            <div class="text-xs text-blue-400 font-bold w-16 text-right">KeyStream</div>
+                            <div class="xor-circle" id="ctr-xor1">⊕</div>
+                            <div class="text-slate-500">←</div>
+                            <div class="data-block block-plain" id="ctr-p1">Plain 1</div>
+                        </div>
+                        <div class="data-block block-cipher" id="ctr-c1">Cipher 1</div>
+                    </div>
+
+                    <div class="block-column">
+                        <div class="data-block block-ctr" id="ctr-cnt2">Counter 2</div>
+                        <div id="ctr-aes2">${AES_ENGINE_HTML}</div>
+                        <div class="flex items-center gap-2 mt-4">
+                            <div class="text-xs text-blue-400 font-bold w-16 text-right">KeyStream</div>
+                            <div class="xor-circle" id="ctr-xor2">⊕</div>
+                            <div class="text-slate-500">←</div>
+                            <div class="data-block block-plain" id="ctr-p2">Plain 2</div>
+                        </div>
+                        <div class="data-block block-cipher" id="ctr-c2">Cipher 2</div>
+                    </div>
+                `,
+                connections: [
+                    { from: 'ctr-cnt1', to: 'ctr-aes1' }, { from: 'ctr-aes1', to: 'ctr-xor1' }, { from: 'ctr-xor1', to: 'ctr-c1' },
+                    { from: 'ctr-cnt2', to: 'ctr-aes2' }, { from: 'ctr-aes2', to: 'ctr-xor2' }, { from: 'ctr-xor2', to: 'ctr-c2' }
+                ]
+            }
+        };
+
+        let currentMode = 'ECB';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            document.getElementById('desc-text').innerHTML = MODES[mode].desc;
+            document.getElementById('content-container').innerHTML = MODES[mode].html;
+            setTimeout(drawLines, 50);
+            setTimeout(drawLines, 500); 
+        }
+
+        function drawLines() {
+            const svg = document.getElementById('svg-layer');
+            const defs = svg.querySelector('defs').outerHTML;
+            svg.innerHTML = defs; 
+
+            const conns = MODES[currentMode].connections;
+            if (!conns) return;
+
+            const containerRect = document.getElementById('diagram-area').getBoundingClientRect();
+
+            conns.forEach(c => {
+                const el1 = document.getElementById(c.from);
+                const el2 = document.getElementById(c.to);
+                
+                if (el1 && el2) {
+                    const r1 = el1.getBoundingClientRect();
+                    const r2 = el2.getBoundingClientRect();
+
+                    const x1 = r1.left + r1.width / 2 - containerRect.left;
+                    const y1 = r1.bottom - containerRect.top; 
+                    
+                    // Default Target: Top Center
+                    let x2 = r2.left + r2.width / 2 - containerRect.left;
+                    let y2 = r2.top - containerRect.top;
+
+                    let d = '';
+                    let cls = 'arrow-line';
+                    let marker = 'url(#arrow)';
+
+                    if (c.type === 'feedback') {
+                        // [FIXED] Routing: Down -> Middle Gap -> Up -> Left into XOR
+                        const startX = x1;
+                        const startY = y1;
+                        
+                        // Target is Left side of XOR circle
+                        const targetX = r2.left - containerRect.left; // Left edge
+                        const targetY = r2.top + r2.height/2 - containerRect.top; // Center Y
+
+                        // Midpoint between columns (safe zone)
+                        const midX = (x1 + x2) / 2 - 30; // Shift left a bit to be centered in gap
+
+                        d = `M ${startX} ${startY} 
+                             L ${startX} ${startY + 25} 
+                             L ${midX} ${startY + 25} 
+                             L ${midX} ${targetY} 
+                             L ${targetX} ${targetY}`;
+                             
+                        cls = 'arrow-feedback';
+                        marker = 'url(#arrow-red)';
+                    } else {
+                        // Standard Vertical Line
+                        d = `M ${x1} ${y1} L ${x2} ${y2}`;
+                    }
+
+                    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    path.setAttribute("d", d);
+                    path.setAttribute("class", cls);
+                    if(marker) path.setAttribute("marker-end", marker);
+                    svg.appendChild(path);
+                }
+            });
+        }
+
+        window.onload = () => setMode('ECB');
+        window.onresize = drawLines;
+
+    </script>
+</body>
+</html>

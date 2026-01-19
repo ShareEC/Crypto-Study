@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES Rcon (Round Constant) 생성기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        .rcon-card {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .rcon-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border-color: #f59e0b;
+        }
+        .rcon-card.unused {
+            opacity: 0.4;
+            filter: grayscale(100%);
+            border-style: dashed;
+        }
+        .rcon-card.unused:hover {
+            opacity: 0.8;
+            filter: none;
+        }
+
+        /* Bit Visualization */
+        .bit-1 { color: #60a5fa; font-weight: bold; }
+        .bit-0 { color: #475569; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .mode-btn {
+            border: 1px solid #475569;
+            background-color: #1e293b;
+            color: #94a3b8;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover { background-color: #334155; color: white; }
+        .mode-btn.active {
+            background-color: #f59e0b; /* Amber-500 */
+            color: #fff;
+            border-color: #d97706;
+            font-weight: bold;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+        
+        .calc-box {
+            background: rgba(15, 23, 42, 0.6);
+            border-left: 3px solid #3b82f6;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        .calc-val { color: #60a5fa; font-weight: bold; font-family: 'Roboto Mono', monospace; }
+        .calc-label { color: #94a3b8; margin-right: 5px; }
+
+        /* Calculation Trace Style */
+        .trace-box {
+            font-size: 0.7rem;
+            background: #00000040;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-family: 'Roboto Mono', monospace;
+            border: 1px solid #334155;
+        }
+        .trace-overflow { color: #f87171; text-decoration: line-through; opacity: 0.7; }
+        .trace-mod { color: #60a5fa; font-weight: bold; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-6xl w-full mb-8 text-center">
+        <h1 class="text-3xl md:text-4xl font-bold text-yellow-500 mb-2">AES 라운드 상수 (Rcon) 생성기</h1>
+        <p class="text-slate-400 text-sm md:text-base">
+            키 길이(Nk)에 따른 Rcon 사용 횟수와, <span class="text-red-400 font-bold">Modulo(오버플로우)</span> 발생 시 연산 과정을 보여줍니다.
+        </p>
+    </header>
+
+    <main class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+        <section class="space-y-6 flex flex-col h-full">
+            
+            <div class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2 flex items-center gap-2">
+                    <span class="w-2 h-6 bg-blue-500 rounded"></span>
+                    AES 모드 선택
+                </h2>
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <button onclick="setMode(128)" id="btn-128" class="mode-btn py-3 rounded-lg">AES-128</button>
+                    <button onclick="setMode(192)" id="btn-192" class="mode-btn py-3 rounded-lg">AES-192</button>
+                    <button onclick="setMode(256)" id="btn-256" class="mode-btn py-3 rounded-lg">AES-256</button>
+                </div>
+                
+                <div id="mode-explanation" class="bg-slate-900/50 p-4 rounded-lg border border-slate-600/50 text-sm text-slate-300 leading-relaxed space-y-3">
+                    </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-xl p-0 shadow-lg border border-slate-700 overflow-hidden flex flex-col flex-1">
+                <div class="bg-slate-900 px-4 py-2 border-b border-slate-700 flex justify-between items-center">
+                    <span class="text-xs font-bold text-yellow-500 uppercase">Key Expansion Logic</span>
+                </div>
+                <div class="p-4 overflow-x-auto bg-[#1e1e1e]">
+<pre class="text-xs md:text-sm mono text-gray-300 leading-relaxed">
+<span class="text-gray-500">// 키 확장 루프</span>
+<span class="text-pink-400">for</span> (i = <span class="text-blue-400">Nk</span>; i < <span class="text-blue-400">TotalWords</span>; i++) {
+    temp = w[i-1];
+    
+    <span class="text-gray-500">// 핵심: Nk 주기마다 Rcon 사용</span>
+    <span class="text-pink-400">if</span> (i % <span class="text-blue-400">Nk</span> == 0) {
+        <span class="text-gray-500">// RotWord -> SubWord -> XOR Rcon</span>
+        temp = <span class="text-yellow-400">SubWord</span>(<span class="text-yellow-400">RotWord</span>(temp)) ^ <span class="text-green-400">Rcon[i/Nk]</span>;
+    }
+    <span class="text-pink-400">else if</span> (Nk > 6 && i % Nk == 4) {
+        temp = <span class="text-yellow-400">SubWord</span>(temp);
+    }
+    w[i] = w[i-<span class="text-blue-400">Nk</span>] ^ temp;
+}
+</pre>
+                </div>
+                <div class="p-3 text-[11px] text-slate-400 bg-slate-900/30 border-t border-slate-700">
+                    * <span class="text-blue-400 font-bold">Nk(키 길이)</span>가 커질수록 <span class="text-green-400 font-bold">Rcon</span>을 호출하는 빈도가 줄어듭니다.
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700 h-[700px] flex flex-col">
+            <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-6 bg-yellow-500 rounded"></span>
+                    <span>Rcon 테이블 생성 결과</span>
+                </div>
+                <span class="text-xs text-yellow-500 font-mono bg-yellow-900/30 px-2 py-1 rounded border border-yellow-700/50" id="usage-badge">
+                    Used: 10
+                </span>
+            </h2>
+            
+            <div id="rconContainer" class="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                </div>
+            
+            <div class="mt-4 pt-3 border-t border-slate-700 text-[11px] text-slate-500 text-center shrink-0">
+                * Rcon[i] = x^(i-1) in GF(2⁸). 0x80을 넘으면 기약다항식(0x11B)과 XOR 합니다.
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- GF(2^8) Logic for x2 ---
+        function gmult_x2(val) {
+            let res = val << 1;
+            let overflow = false;
+            
+            if (val & 0x80) { // If MSB was 1
+                overflow = true;
+                res ^= 0x11B; // Reduce by Modulo
+            }
+            return { val: res & 0xFF, overflow: overflow };
+        }
+
+        function toHex(num) {
+            return num.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function toBinStr(num) {
+            let bin = num.toString(2).padStart(8, '0');
+            return bin.split('').map(b => 
+                b === '1' ? `<span class="bit-1">1</span>` : `<span class="bit-0">0</span>`
+            ).join('');
+        }
+
+        // --- Data for Explanation ---
+        const modeInfo = {
+            128: {
+                nk: 4,
+                rounds: 10,
+                desc: "키 길이가 짧아(4) 확장을 자주 해야 하므로 Rcon이 가장 많이 쓰입니다."
+            },
+            192: {
+                nk: 6,
+                rounds: 12,
+                desc: "키 길이가 중간(6)이라 확장이 덜 필요해 Rcon 사용이 줄어듭니다."
+            },
+            256: {
+                nk: 8,
+                rounds: 14,
+                desc: "키 길이가 길어(8) 확장이 드물게 일어나 Rcon이 가장 적게 쓰입니다."
+            }
+        };
+
+        let currentMode = 128;
+
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // Update Buttons
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+
+            const info = modeInfo[mode];
+            const nk = info.nk;
+            const rounds = info.rounds;
+            
+            // --- Calculation Logic ---
+            const totalWords = 4 * (rounds + 1);
+            const rconCount = Math.floor((totalWords - nk - 1) / nk) + 1; 
+
+            // Update Info Text with Calculation UI
+            document.getElementById('mode-explanation').innerHTML = `
+                <div class="grid grid-cols-2 gap-4 mb-2">
+                    <div class="bg-slate-900 p-2 rounded border border-slate-700">
+                        <div class="text-xs text-slate-500">키 길이 (Nk)</div>
+                        <div class="text-xl font-bold text-white">${nk} 워드</div>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded border border-slate-700">
+                        <div class="text-xs text-slate-500">총 라운드 (Nr)</div>
+                        <div class="text-xl font-bold text-white">${rounds} 라운드</div>
+                    </div>
+                </div>
+                
+                <div class="calc-box">
+                    <div class="mb-1"><span class="calc-label">필요한 총 워드 수:</span> <span class="calc-val">4 × (${rounds} + 1) = ${totalWords}</span></div>
+                    <div class="mb-1"><span class="calc-label">Rcon 호출 주기:</span> <span class="calc-val">매 ${nk} 워드마다</span></div>
+                    <div class="border-t border-slate-700 my-2 pt-1">
+                        <span class="calc-label text-yellow-500">∴ 필요한 Rcon 개수:</span> 
+                        <span class="calc-val text-yellow-400 text-lg">${rconCount}개</span>
+                    </div>
+                </div>
+                <p class="mt-2 text-xs text-slate-400">${info.desc}</p>
+            `;
+            
+            document.getElementById('usage-badge').innerText = `Used: Rcon[1] ~ Rcon[${rconCount}]`;
+
+            generateRconTable(rconCount);
+        }
+
+        function generateRconTable(maxUsed) {
+            const container = document.getElementById('rconContainer');
+            container.innerHTML = '';
+
+            const displayLimit = 12; 
+            let rc = 1; 
+            let prevRc = 0; // To trace calculation
+
+            for (let i = 1; i <= displayLimit; i++) {
+                let isUsed = i <= maxUsed;
+                
+                // Logic Visuals
+                let badges = "";
+                let calcTrace = "";
+                let cardClass = isUsed ? "border-slate-600 bg-slate-900" : "border-slate-800 bg-slate-900/40 unused";
+                let textClass = isUsed ? "text-white" : "text-slate-600";
+                let hexClass = isUsed ? "text-yellow-400" : "text-slate-700";
+                
+                // Generate Calc Trace
+                if (i === 1) {
+                    calcTrace = `<span class="text-slate-500">초기값 (x⁰)</span>`;
+                } else {
+                    // Check logic based on PREVIOUS value
+                    let shifted = prevRc << 1;
+                    
+                    // [MODIFIED] Special Binary Display for No.9 (First Overflow in standard sequence)
+                    if (prevRc === 0x80) { 
+                        badges = `<span class="bg-red-900/40 text-red-300 text-[10px] px-2 py-0.5 rounded border border-red-800/50 ml-2 animate-pulse">Overflow!</span>`;
+                        // Show Binary XOR
+                        calcTrace = `
+                            <div class="text-[10px] text-slate-400 mb-1">Modulo Operation (Binary):</div>
+                            <div class="font-mono text-[10px] leading-tight bg-black/40 p-2 rounded border border-slate-700">
+                                <div class="flex justify-between"><span class="text-slate-500">1 0000 0000</span> <span class="text-xs text-slate-600">(0x80 << 1)</span></div>
+                                <div class="flex justify-between border-b border-slate-600 mb-1 pb-1"><span class="text-blue-400">1 0001 1011</span> <span class="text-xs text-blue-500">(0x11B)</span></div>
+                                <div class="flex justify-between font-bold text-yellow-400"><span>0 0001 1011</span> <span class="text-xs">(0x1B)</span></div>
+                            </div>
+                        `;
+                    } 
+                    else if (prevRc & 0x80) { // Other Overflows
+                        badges = `<span class="bg-red-900/40 text-red-300 text-[10px] px-2 py-0.5 rounded border border-red-800/50 ml-2">Modulo</span>`;
+                        calcTrace = `
+                            <span class="text-slate-400">0x${toHex(prevRc)}<<1</span> 
+                            <span class="text-slate-500">→</span> 
+                            <span class="trace-overflow">0x${toHex(shifted)}</span> 
+                            <span class="trace-mod">^ 0x11B</span>
+                        `;
+                    } else {
+                        calcTrace = `<span class="text-slate-400">0x${toHex(prevRc)} << 1</span>`;
+                    }
+                }
+
+                const html = `
+                    <div class="rcon-card ${cardClass} border rounded-lg p-3 flex flex-col md:flex-row items-center justify-between group gap-4">
+                        
+                        <div class="flex items-center gap-4 w-full md:w-auto">
+                            <div class="flex flex-col items-center w-12 border-r border-slate-700/50 pr-4 shrink-0">
+                                <span class="text-[10px] text-slate-500 uppercase">No.</span>
+                                <span class="text-lg font-bold ${textClass}">${i}</span>
+                            </div>
+                            
+                            <div class="flex flex-col">
+                                <div class="flex items-center mb-1">
+                                    <span class="text-xl md:text-2xl font-bold ${hexClass} mono mr-3">0x${toHex(rc)}</span>
+                                    ${isUsed ? badges : ''}
+                                </div>
+                                <div class="flex items-center gap-2 mono text-xs ${isUsed ? '' : 'opacity-20'}">
+                                    ${toBinStr(rc)}
+                                </div>
+                                <div class="trace-box ${isUsed ? '' : 'opacity-30'} w-full md:w-auto">
+                                    ${calcTrace}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-right w-full md:w-auto shrink-0 self-start md:self-center">
+                            <div class="text-[10px] text-slate-500 mb-1">Rcon[${i}] Word</div>
+                            <div class="mono text-sm ${isUsed ? 'text-slate-300' : 'text-slate-700'} font-bold bg-black/20 px-2 py-1 rounded border border-slate-700/30">
+                                <span class="${hexClass}">${toHex(rc)}</span> 00 00 00
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+                
+                prevRc = rc;
+                rc = gmult_x2(rc).val;
+            }
+        }
+
+        window.onload = () => setMode(128);
+
+    </script>
+</body>
+</html>

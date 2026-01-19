@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES S-Box 생성 원리 시각화 (S-Box Generator)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap');
+        
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Table Styles */
+        .sbox-cell {
+            width: 2rem; height: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; border: 1px solid #334155;
+            transition: all 0.2s;
+        }
+        .sbox-cell.highlight { background-color: #3b82f6; color: white; border-color: #60a5fa; font-weight: bold; transform: scale(1.1); }
+        .sbox-header { background-color: #1e293b; color: #94a3b8; font-weight: bold; }
+        
+        .bit-box {
+            display: inline-block; width: 20px; text-align: center;
+            border: 1px solid #475569; margin-right: 2px; font-size: 0.8rem;
+        }
+        .bit-1 { background-color: #3b82f6; color: white; border-color: #2563eb; }
+        .bit-0 { background-color: #1e293b; color: #64748b; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <header class="max-w-6xl w-full mb-8 text-center">
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-400 mb-2">AES S-Box 생성 원리 시각화</h1>
+        <p class="text-slate-400 text-sm md:text-base">수학적 공식 (Galois Field 역원 + 아핀 변환)을 통한 S-Box 실시간 생성기</p>
+    </header>
+
+    <main class="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+        <!-- Left Column: Input & Step-by-Step Logic -->
+        <div class="lg:col-span-5 space-y-6">
+            
+            <!-- Input Section -->
+            <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">1. 값 변환 실험</h2>
+                <div class="flex gap-4 items-end">
+                    <div class="flex-1">
+                        <label class="text-xs text-slate-400 mb-1 block">Input Byte (Hex)</label>
+                        <input type="text" id="inputByte" class="w-full bg-slate-900 border border-slate-600 text-white p-2 rounded mono text-lg uppercase focus:border-blue-500 outline-none text-center" 
+                               value="53" maxlength="2">
+                    </div>
+                    <button onclick="calculateSBoxValue()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded h-[46px] transition shadow-lg">
+                        계산 실행
+                    </button>
+                </div>
+                <div class="mt-2 text-xs text-slate-500 text-center">
+                    00 ~ FF 사이의 값을 입력해보세요.
+                </div>
+            </section>
+
+            <!-- Step-by-Step Explanation -->
+            <section id="stepsContainer" class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700 hidden">
+                <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">2. 상세 계산 과정</h2>
+                
+                <!-- Step 1: Inverse -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-yellow-400">Step 1: 곱셈의 역원 (Inverse)</span>
+                        <span class="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300">in GF(2^8)</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded border border-slate-600">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-xs text-slate-400">Input</span>
+                            <span class="text-sm mono text-white" id="step1Input">00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400">Inverse Calculation</span>
+                            <span class="text-xs text-slate-500">x * x⁻¹ = 1</span>
+                        </div>
+                        <div class="flex justify-between mt-1 border-t border-slate-700 pt-1">
+                            <span class="text-xs text-blue-400 font-bold">Result (A)</span>
+                            <span class="text-lg mono text-yellow-400 font-bold" id="step1Result">00</span>
+                        </div>
+                        <div id="step1Bits" class="mt-2 text-center"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Affine Transform -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-green-400">Step 2: 아핀 변환 (Affine)</span>
+                        <span class="text-[10px] bg-slate-700 px-2 py-1 rounded text-slate-300">Matrix * A + 0x63</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded border border-slate-600 space-y-2">
+                        <div class="text-xs text-slate-400">행렬 곱셈 (비트 회전 & XOR)</div>
+                        <div class="mono text-xs text-slate-300 pl-2 border-l-2 border-green-500/50">
+                            A <br>
+                            ^ (A <<< 1) <br>
+                            ^ (A <<< 2) <br>
+                            ^ (A <<< 3) <br>
+                            ^ (A <<< 4)
+                        </div>
+                        <div class="flex justify-between items-center border-t border-slate-700 pt-2">
+                            <span class="text-xs text-slate-400">중간 결과</span>
+                            <span class="text-sm mono text-white" id="step2Mid">00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-slate-400">상수 더하기 (XOR 0x63)</span>
+                            <span class="text-sm mono text-slate-500">⊕ 63</span>
+                        </div>
+                        <div class="flex justify-between mt-1 border-t border-slate-700 pt-1">
+                            <span class="text-xs text-blue-400 font-bold">Final Result</span>
+                            <span class="text-xl mono text-green-400 font-bold" id="step2Result">00</span>
+                        </div>
+                        <div id="step2Bits" class="mt-2 text-center"></div>
+                    </div>
+                </div>
+
+                <div class="text-center p-2 bg-blue-900/20 border border-blue-500/30 rounded">
+                    <span class="text-sm text-blue-200">S-Box[<span id="finalInput" class="font-bold"></span>] = <span id="finalOutput" class="font-bold text-xl"></span></span>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- Right Column: Full S-Box Table -->
+        <div class="lg:col-span-7 space-y-6">
+            <section class="bg-slate-800 rounded-xl p-6 shadow-lg border border-slate-700 h-full flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-white">표준 S-Box (Generated)</h2>
+                    <button onclick="generateFullTable()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1 rounded text-white border border-slate-600">
+                        전체 테이블 생성하기
+                    </button>
+                </div>
+                
+                <div class="overflow-auto custom-scrollbar flex-1 flex justify-center">
+                    <div id="sboxGrid" class="grid grid-cols-17 gap-px bg-slate-700 border border-slate-600 p-1 rounded">
+                        <!-- JS will populate this -->
+                    </div>
+                </div>
+                
+                <p class="text-[10px] text-slate-500 mt-4 text-center">
+                    * 위 테이블은 이미지 파일이 아니라, 자바스크립트가 수학 공식을 통해 실시간으로 계산한 값입니다.
+                </p>
+            </section>
+        </div>
+
+    </main>
+
+    <script>
+        // --- 1. Galois Field (2^8) Arithmetic Logic ---
+        
+        // AES Irreducible Polynomial: x^8 + x^4 + x^3 + x + 1 (0x11B)
+        function gmult(a, b) {
+            let p = 0;
+            for (let i = 0; i < 8; i++) {
+                if ((b & 1) !== 0) {
+                    p ^= a;
+                }
+                let hi_bit_set = (a & 0x80) !== 0;
+                a = (a << 1) & 0xFF; // Keep 8 bits
+                if (hi_bit_set) {
+                    a ^= 0x1B; // XOR with 0x11B (drop high bit)
+                }
+                b >>= 1;
+            }
+            return p;
+        }
+
+        // Calculate Multiplicative Inverse in GF(2^8)
+        // Brute force is fast enough for 256 values
+        function findInverse(val) {
+            if (val === 0) return 0; // 0 has no inverse, maps to 0
+            for (let i = 1; i < 256; i++) {
+                if (gmult(val, i) === 1) {
+                    return i;
+                }
+            }
+            return 0; // Should not happen for val != 0
+        }
+
+        // --- 2. Affine Transformation Logic ---
+        
+        function rotl8(x, shift) {
+            return ((x << shift) | (x >> (8 - shift))) & 0xFF;
+        }
+
+        function affineTransform(byteVal) {
+            // Matrix multiplication over GF(2)
+            // s' = s ^ (s <<< 1) ^ (s <<< 2) ^ (s <<< 3) ^ (s <<< 4) ^ 0x63
+            let s = byteVal;
+            let mat_mul = s ^ rotl8(s, 1) ^ rotl8(s, 2) ^ rotl8(s, 3) ^ rotl8(s, 4);
+            return mat_mul ^ 0x63; // Add constant 0x63
+        }
+
+        // Complete S-Box Calculation
+        function calculateSBox(input) {
+            const inv = findInverse(input);
+            const res = affineTransform(inv);
+            
+            // For detail view: return intermediate values
+            const mid = affineTransform(inv) ^ 0x63; // Result before adding 0x63
+            return { input, inv, mid, res };
+        }
+
+
+        // --- 3. Visualization & UI Functions ---
+
+        function toHex(num) {
+            return num.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function toBinHTML(num) {
+            let html = '';
+            for(let i=7; i>=0; i--) {
+                const bit = (num >> i) & 1;
+                html += `<span class="bit-box ${bit ? 'bit-1' : 'bit-0'}">${bit}</span>`;
+            }
+            return html;
+        }
+
+        function calculateSBoxValue() {
+            const inputHex = document.getElementById('inputByte').value.trim();
+            if(!/^[0-9A-Fa-f]{1,2}$/.test(inputHex)) {
+                alert("유효한 Hex 값(00~FF)을 입력하세요.");
+                return;
+            }
+
+            const inputVal = parseInt(inputHex, 16);
+            const data = calculateSBox(inputVal);
+
+            // Show UI
+            document.getElementById('stepsContainer').classList.remove('hidden');
+
+            // Step 1 UI
+            document.getElementById('step1Input').innerText = toHex(data.input);
+            document.getElementById('step1Result').innerText = toHex(data.inv);
+            document.getElementById('step1Bits').innerHTML = toBinHTML(data.inv);
+
+            // Step 2 UI
+            // Recalculate 'mid' correctly for display (matrix result without 0x63)
+            let s = data.inv;
+            let mat_mul = s ^ rotl8(s, 1) ^ rotl8(s, 2) ^ rotl8(s, 3) ^ rotl8(s, 4);
+            
+            document.getElementById('step2Mid').innerText = toHex(mat_mul);
+            document.getElementById('step2Result').innerText = toHex(data.res);
+            document.getElementById('step2Bits').innerHTML = toBinHTML(data.res);
+
+            // Final Result
+            document.getElementById('finalInput').innerText = toHex(data.input);
+            document.getElementById('finalOutput').innerText = toHex(data.res);
+
+            // Highlight in table if generated
+            highlightTable(data.input);
+        }
+
+        function generateFullTable() {
+            const grid = document.getElementById('sboxGrid');
+            grid.innerHTML = '';
+            
+            // Configure Grid CSS for 17 columns (1 header + 16 data)
+            grid.style.gridTemplateColumns = 'repeat(17, minmax(0, 1fr))';
+
+            // Top Header (0 ~ F)
+            grid.innerHTML += `<div class="sbox-cell sbox-header"></div>`; // Corner
+            for(let i=0; i<16; i++) {
+                grid.innerHTML += `<div class="sbox-cell sbox-header">${i.toString(16).toUpperCase()}</div>`;
+            }
+
+            // Rows
+            for(let r=0; r<16; r++) {
+                // Row Header
+                grid.innerHTML += `<div class="sbox-cell sbox-header">${r.toString(16).toUpperCase()}</div>`;
+                
+                for(let c=0; c<16; c++) {
+                    const input = (r << 4) | c;
+                    const res = calculateSBox(input).res;
+                    
+                    const div = document.createElement('div');
+                    div.className = 'sbox-cell bg-slate-800 text-slate-300';
+                    div.id = `cell-${input}`;
+                    div.innerText = toHex(res);
+                    div.onclick = () => {
+                        document.getElementById('inputByte').value = toHex(input);
+                        calculateSBoxValue();
+                    };
+                    grid.appendChild(div);
+                }
+            }
+            
+            // Highlight current input if needed
+            const currentHex = document.getElementById('inputByte').value;
+            if(currentHex) highlightTable(parseInt(currentHex, 16));
+        }
+
+        function highlightTable(val) {
+            // Remove old highlights
+            document.querySelectorAll('.sbox-cell.highlight').forEach(el => el.classList.remove('highlight'));
+            
+            const cell = document.getElementById(`cell-${val}`);
+            if(cell) {
+                cell.classList.add('highlight');
+                cell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Initialize empty table layout on load
+        window.onload = function() {
+            generateFullTable();
+            calculateSBoxValue();
+        };
+
+    </script>
+</body>
+</html>

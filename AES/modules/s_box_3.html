@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES 아핀 변환 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* 비트 박스 스타일 */
+        .bit-box {
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        .bit-1 { background-color: #3B82F6; color: white; border: 1px solid #2563EB; } /* Blue */
+        .bit-0 { background-color: #F1F5F9; color: #94A3B8; border: 1px solid #CBD5E1; } /* Slate */
+        .bit-c { background-color: #10B981; color: white; border: 1px solid #059669; } /* Constant 0x63 (Green) */
+        .bit-r { background-color: #8B5CF6; color: white; border: 1px solid #7C3AED; } /* Result (Purple) */
+        
+        .row-label { width: 80px; text-align: right; padding-right: 1rem; font-size: 0.875rem; color: #475569; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen py-8 px-4 flex flex-col items-center">
+	<div class="fixed top-4 left-4 z-50">
+        <a href="../index.html" class="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-full border border-slate-600 transition shadow-lg backdrop-blur-sm text-sm font-bold no-underline">
+            <span>🏠</span>
+        </a>
+    </div>
+    <div class="max-w-4xl w-full bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-slate-800 text-white p-6 text-center">
+            <h1 class="text-2xl font-bold mb-2">AES 아핀 변환 (Affine Transformation)</h1>
+            <p class="text-slate-300 text-sm">비트 회전과 XOR 합산을 통한 S-Box 값 생성 과정</p>
+        </div>
+
+        <!-- Input Section -->
+        <div class="p-6 bg-slate-100 border-b border-slate-200 flex justify-center items-center gap-4">
+            <label class="text-sm font-bold text-slate-600">입력값 (역원 b)</label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono font-bold">0x</span>
+                <input type="text" id="inputHex" value="CA" maxlength="2" 
+                    class="mono pl-8 pr-3 py-2 w-24 border-2 border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 uppercase font-bold text-xl text-center text-slate-700"
+                    onkeyup="updateSimulation()"
+                >
+            </div>
+            <span class="text-slate-400 text-sm ml-2">← 여기에 값을 입력하세요 (예: 53의 역원 CA)</span>
+        </div>
+
+        <!-- Simulation Visualization -->
+        <div class="p-8 flex flex-col items-center">
+            
+            <!-- Bit Matrix -->
+            <div class="flex flex-col gap-2">
+                
+                <!-- Header Row (Bit Position) -->
+                <div class="flex gap-1 mb-2">
+                    <div class="row-label">Bit No.</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">7</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">6</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">5</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">4</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">3</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">2</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">1</div>
+                    <div class="bit-box text-xs text-slate-400 border-none bg-transparent">0</div>
+                    <div class="w-12 ml-2 text-xs text-slate-400 font-bold text-center">HEX</div>
+                </div>
+
+                <!-- 1. Original (b) -->
+                <div class="flex gap-1 items-center" id="row_0"></div>
+                
+                <!-- 2. Rotate 1 (b <<< 1) -->
+                <div class="flex gap-1 items-center" id="row_1"></div>
+
+                <!-- 3. Rotate 2 (b <<< 2) -->
+                <div class="flex gap-1 items-center" id="row_2"></div>
+
+                <!-- 4. Rotate 3 (b <<< 3) -->
+                <div class="flex gap-1 items-center" id="row_3"></div>
+
+                <!-- 5. Rotate 4 (b <<< 4) -->
+                <div class="flex gap-1 items-center" id="row_4"></div>
+
+                <!-- 6. Constant (0x63) -->
+                <div class="flex gap-1 items-center" id="row_c"></div>
+
+                <!-- Separator Line -->
+                <div class="h-px bg-slate-300 w-full my-2"></div>
+
+                <!-- 7. Result -->
+                <div class="flex gap-1 items-center" id="row_res"></div>
+
+            </div>
+
+        </div>
+
+        <!-- Explanation -->
+        <div class="p-6 bg-slate-50 border-t border-slate-200 text-sm text-slate-600">
+            <h3 class="font-bold text-slate-800 mb-2">💡 계산 원리</h3>
+            <ul class="list-disc list-inside space-y-1">
+                <li><span class="text-blue-600 font-bold">파란색 줄:</span> 입력값을 왼쪽으로 1칸, 2칸, 3칸, 4칸씩 <strong>회전(Rotation)</strong>시킨 값들입니다.</li>
+                <li><span class="text-green-600 font-bold">초록색 줄:</span> 마지막에 더해주는 상수 <strong>0x63 (01100011)</strong>입니다.</li>
+                <li><span class="text-purple-600 font-bold">보라색 줄 (결과):</span> 위의 6개 줄을 <strong>세로 방향으로 XOR</strong>한 결과입니다.</li>
+                <li class="text-xs text-slate-500 ml-4">(세로줄에 '1'의 개수가 홀수 개면 1, 짝수 개면 0이 됩니다)</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <script>
+        // 8비트 왼쪽 회전 함수
+        function rotateLeft8(val, n) {
+            return ((val << n) | (val >>> (8 - n))) & 0xFF;
+        }
+
+        // 숫자를 8자리 이진수 배열로 변환 [MSB ... LSB]
+        function getBits(num) {
+            let bits = [];
+            for(let i=7; i>=0; i--) {
+                bits.push((num >> i) & 1);
+            }
+            return bits;
+        }
+
+        function toHex(num) {
+            return num.toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        function createRowHTML(label, val, type) {
+            const bits = getBits(val);
+            let html = `<div class="row-label">${label}</div>`;
+            
+            bits.forEach(bit => {
+                let colorClass = 'bit-0';
+                if (bit === 1) {
+                    if (type === 'const') colorClass = 'bit-c';
+                    else if (type === 'res') colorClass = 'bit-r';
+                    else colorClass = 'bit-1';
+                }
+                html += `<div class="bit-box ${colorClass}">${bit}</div>`;
+            });
+
+            // Hex display at the end
+            html += `<div class="w-12 ml-2 mono font-bold text-slate-700 text-center">${toHex(val)}</div>`;
+            
+            return html;
+        }
+
+        function updateSimulation() {
+            const inputEl = document.getElementById('inputHex');
+            let inputVal = parseInt(inputEl.value, 16);
+
+            if (isNaN(inputVal)) inputVal = 0;
+
+            // 1. Calculate Rotations
+            const b0 = inputVal;
+            const b1 = rotateLeft8(b0, 1);
+            const b2 = rotateLeft8(b0, 2);
+            const b3 = rotateLeft8(b0, 3);
+            const b4 = rotateLeft8(b0, 4);
+            const bc = 0x63;
+
+            // 2. Calculate Result (XOR All)
+            const res = b0 ^ b1 ^ b2 ^ b3 ^ b4 ^ bc;
+
+            // 3. Render Rows
+            document.getElementById('row_0').innerHTML = createRowHTML("b (Input)", b0, 'normal');
+            document.getElementById('row_1').innerHTML = createRowHTML("b <<< 1", b1, 'normal');
+            document.getElementById('row_2').innerHTML = createRowHTML("b <<< 2", b2, 'normal');
+            document.getElementById('row_3').innerHTML = createRowHTML("b <<< 3", b3, 'normal');
+            document.getElementById('row_4').innerHTML = createRowHTML("b <<< 4", b4, 'normal');
+            document.getElementById('row_c').innerHTML = createRowHTML("Const 63", bc, 'const');
+            document.getElementById('row_res').innerHTML = createRowHTML("Result", res, 'res');
+        }
+
+        // Initialize
+        window.onload = updateSimulation;
+    </script>
+</body>
+</html>
