@@ -124,7 +124,6 @@
                     <span class="bg-pink-500 text-white text-[10px] px-2 py-0.5 rounded">Pre-Round</span>
                     Initial Key Addition
                 </h3>
-                
                 <div class="w-full overflow-x-auto custom-scrollbar pb-3">
                     <div class="flex items-center justify-start md:justify-center gap-2 min-w-max px-2">
                         <div id="r0-plain" class="grid grid-cols-4 gap-0.5"></div>
@@ -134,12 +133,11 @@
                         <div id="r0-result" class="grid grid-cols-4 gap-0.5 border border-pink-500/50 p-0.5 rounded"></div>
                     </div>
                 </div>
-                
                 <p class="text-center text-slate-500 text-xs md:hidden mt-1">👆 좌우로 밀어서 수식을 확인하세요</p>
             </section>
 
-            <div class="scroll-box bg-slate-800/30 border-slate-700/50">
-                <div class="scroll-content flex gap-2 items-start justify-start md:justify-center">
+            <div class="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
+                <div class="flex flex-wrap gap-4 items-center justify-center">
                     
                     <div class="bg-slate-800/80 p-2 rounded-xl border border-slate-600 flex flex-col items-center step-card active-card min-w-[100px]"
                          id="startCard" onclick="showCode('main', this)">
@@ -147,15 +145,13 @@
                         <div id="grid-start" class="grid grid-cols-4 gap-0.5"></div>
                     </div>
 
-                    <div class="arrow-right self-center">→</div>
-
-                    <div class="bg-slate-800 p-2 rounded-xl border border-yellow-500/30 flex flex-col items-center step-card min-w-[100px]"
+                    <div class="arrow-right hidden lg:flex">→</div> <div class="bg-slate-800 p-2 rounded-xl border border-yellow-500/30 flex flex-col items-center step-card min-w-[100px]"
                          onclick="showCode('inv_shift_rows', this)">
                         <h3 class="text-yellow-300 font-bold mb-2 text-[10px]">1. Shift</h3>
                         <div id="grid-shift" class="grid grid-cols-4 gap-0.5"></div>
                     </div>
 
-                    <div class="arrow-right self-center">→</div>
+                    <div class="arrow-right hidden lg:flex">→</div>
 
                     <div class="bg-slate-800 p-2 rounded-xl border border-blue-500/30 flex flex-col items-center step-card min-w-[100px]"
                          onclick="showCode('inv_sub_bytes', this)">
@@ -163,7 +159,7 @@
                         <div id="grid-sub" class="grid grid-cols-4 gap-0.5"></div>
                     </div>
 
-                    <div class="arrow-right self-center">→</div>
+                    <div class="arrow-right hidden lg:flex">→</div>
 
                     <div class="bg-slate-800 p-2 rounded-xl border border-purple-500/30 flex flex-col items-center step-card min-w-[100px]"
                          onclick="showCode('add_round_key', this)">
@@ -171,7 +167,7 @@
                         <div id="grid-key" class="grid grid-cols-4 gap-0.5"></div>
                     </div>
 
-                    <div class="arrow-right self-center">→</div>
+                    <div class="arrow-right hidden lg:flex">→</div>
 
                     <div class="bg-slate-800 p-2 rounded-xl border border-green-500/30 flex flex-col items-center step-card min-w-[100px]"
                          id="mixColContainer" onclick="showCode('inv_mix_columns', this)">
@@ -180,7 +176,7 @@
                         <div id="mixColSkipped" class="hidden h-28 w-28 flex items-center justify-center border border-dashed border-slate-600 rounded text-slate-500 text-[10px]">SKIP</div>
                     </div>
 
-                    <div class="arrow-right self-center">→</div>
+                    <div class="arrow-right hidden lg:flex">→</div>
 
                     <div class="bg-slate-800/50 p-2 rounded-xl border border-slate-700 flex flex-col items-center min-w-[100px]">
                         <h3 class="text-slate-400 font-bold mb-2 text-[10px]">End</h3>
@@ -189,7 +185,6 @@
 
                 </div>
             </div>
-            <p class="text-center text-slate-600 text-xs md:hidden">👆 좌우로 스크롤하여 전체 과정을 확인하세요</p>
         </div>
 
         <div class="col-span-1 lg:col-span-4 h-full flex flex-col gap-4 lg:sticky lg:top-4">
@@ -208,11 +203,9 @@
                     <h3 class="text-yellow-300 font-bold text-sm">Round Key (Reverse)</h3>
                     <span class="text-[10px] bg-yellow-900/50 text-yellow-200 px-2 py-1 rounded mono">Round <span id="keyRoundDisp">10</span></span>
                 </div>
-                
                 <p class="text-slate-400 text-[10px] mb-3 leading-relaxed">
                     Key Schedule: w[<span id="keyIndexStart">40</span>] ~ w[<span id="keyIndexEnd">43</span>]
                 </p>
-
                 <div class="flex justify-center">
                     <div id="rightKeyGrid" class="grid grid-cols-4 gap-1"></div>
                 </div>
