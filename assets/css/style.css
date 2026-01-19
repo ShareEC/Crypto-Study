@@ -102,3 +102,20 @@ body {
         justify-content: center;
     }
 }
+
+/* [추가] 커스텀 스크롤바 (Chrome, Safari, Edge) */
+.custom-scrollbar::-webkit-scrollbar {
+    height: 8px; /* 가로 스크롤바 두께 */
+    width: 8px;  /* 세로 스크롤바 두께 */
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #1e293b; /* 트랙 배경색 (bg-slate-800) */
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #475569; /* 핸들 색상 (slate-600) */
+    border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #64748b; /* 호버 시 색상 (slate-500) */
+}
