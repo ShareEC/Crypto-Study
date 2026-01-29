@@ -3,166 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ECC Master class: 수학적 원리부터 구현까지</title>
-    
+    <title>암호학 알고리즘 시각화 연구소</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="../assets/css/ecc.css">
-
+    <link rel="stylesheet" href="assets/css/style.css">
     <style>
-        /* 모든 카드에 링크 스타일 적용 */
-        a.item-card {
-            display: flex;
-            align-items: flex-start;
-            text-decoration: none;
-            color: inherit;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        a.item-card:hover {
-            transform: translateY(-3px);
-            border-color: #3b82f6; /* Blue hover color */
-            background-color: rgba(30, 41, 59, 0.8);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* 하단 텍스트 스타일 */
-        .status-text {
-            font-size: 0.75rem; /* text-xs */
-            margin-top: 0.5rem;
-            display: block;
-        }
-        .status-ready { color: #64748b; transition: color 0.2s; } /* Slate-500 */
-        a.item-card:hover .status-ready { color: #60a5fa; } /* Bright Blue on hover */
+        body { font-family: 'Noto Sans KR', sans-serif; }
     </style>
 </head>
-<body class="custom-scrollbar">
+<body class="bg-slate-900 text-slate-200 font-sans min-h-screen flex flex-col">
 
-    <a href="../index.html" class="home-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293L8.707 1.5Z"/>
-        </svg>
-        Crypto Study Home
-    </a>
+    <div class="flex-grow flex items-center justify-center p-4 md:p-8">
+        <div class="max-w-6xl w-full text-center">
+            <h1 class="text-3xl md:text-5xl font-bold text-white mb-4">🔐 암호학 알고리즘 연구소</h1>
+            <p class="text-slate-400 text-sm md:text-base mb-12">Interactive Cryptography Study Kit</p>
 
-    <div class="dashboard-container">
-        
-        <header class="text-center mb-12">
-            <h1 class="text-3xl md:text-4xl font-black text-slate-100 mb-4 tracking-tight">
-                <span class="text-blue-500">ECC</span> (Elliptic Curve Cryptography)
-            </h1>
-            <p class="text-slate-400 max-w-2xl mx-auto text-lg font-light leading-relaxed">
-                SEC 1 표준 기반의 타원 곡선 암호(ECC) 완전 정복.<br>
-                <span class="text-orange-400 font-medium">수학적 원리(Engine)</span>와 <span class="text-teal-400 font-medium">응용 기능(Application)</span>의 구조를 학습합니다.
-            </p>
-        </header>
-
-        <div class="ecc-grid">
-            
-            <section class="ecc-panel panel-left">
-                <div class="section-title">
-                    <span>🛠️</span> Core Engine
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 
-                <a href="ecdlp.html" class="item-card">
-                    <div class="icon-box">📈</div>
-                    <div class="card-content">
-                        <h3 class="text-blue-400">수학적 난제 (ECDLP)</h3>
-                        <p>타원 곡선 이산 로그 문제를 푸는 것은 계산적으로 불가능함에 기반합니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
+                <a href="AES_readme.html" class="group block bg-slate-800 border border-slate-700 rounded-2xl p-8 hover:bg-slate-750 hover:border-green-500 hover:-translate-y-1 transition-all duration-300 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-green-500 text-slate-900 text-[10px] font-bold px-2 py-1 rounded-bl">Active</div>
+                    <h2 class="text-2xl font-bold text-green-400 mb-2 group-hover:text-green-300">AES-128</h2>
+                    <p class="text-slate-300 font-medium">Advanced Encryption Standard</p>
+                    <div class="mt-4 text-sm text-slate-400 leading-relaxed">
+                        갈로아필드, 라운드 연산,<br>MixColumns 시각화
+                    </div>
+                    <div class="mt-6 text-green-400 font-bold flex items-center justify-center gap-2 group-hover:gap-4 transition-all">
+                        학습 시작 <span>→</span>
                     </div>
                 </a>
 
-                <a href="key_generation.html" class="item-card">
-                    <div class="icon-box">🔐</div>
-                    <div class="card-content">
-                        <h3>Key Generation</h3>
-                        <p>개인키 \(d\)는 랜덤 정수, 공개키 \(Q\)는 \(d \times G\) (스칼라 곱셈)입니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
+                <div class="block bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 opacity-60 cursor-not-allowed transition-all hover:opacity-80">
+                    <h2 class="text-2xl font-bold text-slate-500 mb-2">RSA</h2>
+                    <p class="text-slate-500 font-medium">Public-Key Cryptography</p>
+                    <div class="mt-4 text-sm text-slate-600">
+                        소인수분해 원리,<br>공개키/개인키 생성
                     </div>
-                </a>
-
-                <a href="domain_parameters.html" class="item-card">
-                    <div class="icon-box">📐</div>
-                    <div class="card-content">
-                        <h3>Domain Parameters</h3>
-                        <p>곡선 식(\(y^2=x^3+ax+b\)), 기준점 \(G\), 소수 \(p\)를 공유합니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
+                    <div class="mt-6 text-slate-600 font-bold border border-slate-700 inline-block px-3 py-1 rounded text-xs">
+                        준비중 🚧
                     </div>
-                </a>
-
-                <a href="ecc_pros_cons.html" class="item-card">
-                    <div class="icon-box">⚖️</div>
-                    <div class="card-content">
-                        <h3 class="text-green-400">Pros & Cons (Evaluation)</h3>
-                        <p>압도적 효율성과 잠재적 취약점(RNG, Quantum)을 심층 분석합니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
-                    </div>
-                </a>
-            </section>
-
-            <div class="center-visual">
-                <div class="mono text-orange-400 mb-4 font-bold text-xl">MATH</div>
-                <svg class="curve-svg" width="100" height="400" viewBox="0 0 100 400" fill="none">
-                    <path d="M 0 50 C 80 50, 80 350, 0 350" stroke="#f97316" stroke-width="6" stroke-linecap="round" stroke-opacity="0.8" />
-                    <path d="M 100 50 C 20 50, 20 350, 100 350" stroke="#14b8a6" stroke-width="6" stroke-linecap="round" stroke-opacity="0.8" />
-                    <line x1="0" y1="200" x2="100" y2="200" stroke="#475569" stroke-width="2" stroke-dasharray="4,4" />
-                </svg>
-                <div class="mono text-teal-400 mt-4 font-bold text-xl">APP</div>
-            </div>
-
-            <section class="ecc-panel panel-right">
-                <div class="section-title">
-                    <span>🚀</span> Application
                 </div>
 
-                <a href="ecdsa.html" class="item-card">
-                    <div class="icon-box">✍️</div>
-                    <div class="card-content">
-                        <h3>Digital Signature (ECDSA)</h3>
-                        <p>개인키로 서명(Sign)하고 공개키로 검증(Verify)하여 무결성을 보장합니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
+                <a href="ecc/index.html" class="group block bg-slate-800 border border-slate-700 rounded-2xl p-8 hover:bg-slate-750 hover:border-blue-500 hover:-translate-y-1 transition-all duration-300 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl">Active</div>
+                    <h2 class="text-2xl font-bold text-blue-400 mb-2 group-hover:text-blue-300">ECC</h2>
+                    <p class="text-slate-300 font-medium">Elliptic Curve Cryptography</p>
+                    <div class="mt-4 text-sm text-slate-400 leading-relaxed">
+                        타원곡선 이산대수,<br>ECDH, ECDSA 시각화
+                    </div>
+                    <div class="mt-6 text-blue-400 font-bold flex items-center justify-center gap-2 group-hover:gap-4 transition-all">
+                        학습 시작 <span>→</span>
                     </div>
                 </a>
 
-                <a href="ecdh.html" class="item-card">
-                    <div class="icon-box">🤝</div>
-                    <div class="card-content">
-                        <h3>Key Agreement (ECDH)</h3>
-                        <p>공개된 채널에서 서로의 공개키 교환만으로 비밀키를 안전하게 공유합니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
+                <div class="block bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 opacity-60 cursor-not-allowed transition-all hover:opacity-80">
+                    <h2 class="text-2xl font-bold text-slate-500 mb-2">SHA-256</h2>
+                    <p class="text-slate-500 font-medium">Secure Hash Algorithm</p>
+                    <div class="mt-4 text-sm text-slate-600">
+                        해시 함수 구조,<br>압축 함수 동작 원리
                     </div>
-                </a>
-
-                <a href="ecies.html" class="item-card">
-                    <div class="icon-box">📩</div>
-                    <div class="card-content">
-                        <h3>Encryption (ECIES)</h3>
-                        <p>대칭키(AES)를 ECC로 암호화하여 전달하는 하이브리드 방식입니다.</p>
-                        <span class="status-text status-ready">Click to explore details →</span>
+                    <div class="mt-6 text-slate-600 font-bold border border-slate-700 inline-block px-3 py-1 rounded text-xs">
+                        준비중 🚧
                     </div>
-                </a>
-            </section>
+                </div>
 
+                <div class="block bg-slate-800/20 border border-slate-700/30 rounded-2xl p-8 flex flex-col items-center justify-center border-dashed min-h-[200px]">
+                    <div class="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center mb-3">
+                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    </div>
+                    <span class="text-slate-600 text-sm font-medium">Coming Soon</span>
+                </div>
+
+                <div class="block bg-slate-800/20 border border-slate-700/30 rounded-2xl p-8 flex flex-col items-center justify-center border-dashed min-h-[200px]">
+                    <div class="w-12 h-12 rounded-full bg-slate-800/50 flex items-center justify-center mb-3">
+                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    </div>
+                    <span class="text-slate-600 text-sm font-medium">Coming Soon</span>
+                </div>
+
+            </div>
         </div>
+    </div>
 
-        <footer class="custom-footer dark-footer-style">
-        <div class="footer-inner">
-            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
-            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
-            <div class="signature-box">
-                <span class="sig-label">Created by</span>
-                <span class="sig-name">EunChang</span>
-                <a href="mailto:focus81@teia.co.kr" class="email-link">
-                    <svg class="email-icon w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+    <footer class="bg-slate-950 border-t border-slate-800 py-12 mt-auto">
+        <div class="max-w-4xl mx-auto px-6 text-center text-slate-500 text-sm">
+            <p class="mb-2">Based on NIST FIPS & C Implementation Analysis</p>
+            <p class="mb-4 text-slate-400">&copy; 2026 Interactive Cryptography Master Class. Generated for Educational Purpose.</p>
+            
+            <div class="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-slate-800">
+                <span class="text-slate-500">Created by</span>
+                <span class="font-bold text-slate-300">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="text-blue-400 hover:text-blue-300 transition-colors ml-1" aria-label="Email Author">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                 </a>
             </div>
         </div>
     </footer>
 
-    </div>
 </body>
 </html>
