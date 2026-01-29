@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECDSA - Final V25 (Flip Arrow)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Base Styles */
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'sans-serif'; }
+        .page-section { margin-bottom: 4rem; }
+
+        /* Part 1 Styles */
+        .var-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        .var-col { background: rgba(30, 41, 59, 0.5); padding: 1rem; border-radius: 8px; border: 1px solid #334155; }
+        .var-header { font-size: 0.85rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; border-bottom: 1px solid #475569; padding-bottom: 4px; }
+        .var-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.25rem; }
+        .var-symbol { font-family: 'Roboto Mono', monospace; font-weight: bold; color: white; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; }
+
+        .process-step { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; position: relative; margin-bottom: 2rem; }
+        .actor-label { position: absolute; top: -12px; left: 20px; font-size: 0.75rem; font-weight: bold; padding: 2px 10px; border-radius: 9999px; text-transform: uppercase; }
+        .actor-alice { background: #db2777; color: white; border: 2px solid #1e293b; }
+        .actor-bob { background: #3b82f6; color: white; border: 2px solid #1e293b; }
+        .formula-box { background: rgba(15, 23, 42, 0.6); border-left: 4px solid; padding: 1rem; margin: 1rem 0; font-family: 'Roboto Mono', monospace; font-size: 0.9rem; color: #e2e8f0; }
+        .formula-sign { border-color: #db2777; }
+
+        /* Flow Diagram */
+        .flow-diagram { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 2rem 3rem; border-radius: 12px; margin-bottom: 3rem; border: 1px dashed #475569; position: relative; height: 180px; }
+        .flow-node { text-align: center; position: relative; z-index: 10; width: 100px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+        .flow-icon { font-size: 3rem; margin-bottom: 0.5rem; display: block; line-height: 1; }
+        .flow-arrow { flex-grow: 1; height: 2px; background: #475569; margin: 0 1.5rem; position: relative; top: -10px; }
+        .flow-arrow::after { content: ""; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid #475569; }
+        .packet-container { position: absolute; top: -45px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; animation: float 3s infinite ease-in-out; }
+        .packet-msg { background: #1e293b; border: 1px solid #94a3b8; color: #e2e8f0; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .packet-sig { background: #1e293b; border: 1px solid #db2777; color: #db2777; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        @keyframes float { 0%, 100% { transform: translate(-50%, -45px); } 50% { transform: translate(-50%, -50px); } }
+
+        /* Verify Flow */
+        .verify-flow { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.5rem; }
+        .v-step { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; position: relative; }
+        .v-step-header { font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-bottom: 0.5rem; text-transform: uppercase; display: flex; justify-content: space-between; }
+        .v-step-formula { font-family: 'Roboto Mono', monospace; font-size: 1rem; color: #e2e8f0; }
+        .v-step-desc { font-size: 0.8rem; color: #64748b; margin-top: 0.5rem; }
+        .v-step::after { content: "↓"; position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); color: #3b82f6; font-size: 1.2rem; font-weight: bold; }
+        .v-step:last-child::after { content: ""; }
+        .v-step.final { border-color: #22c55e; background: rgba(34, 197, 94, 0.05); }
+        .hl-inv { color: #f472b6; } .hl-mix { color: #60a5fa; } .hl-pt { color: #facc15; font-weight: bold; }
+
+        /* Simulator Styles */
+        .sim-section { border-top: 2px dashed #475569; padding-top: 4rem; margin-top: 4rem; position: relative; }
+        .sim-badge { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: #0f172a; padding: 0 1rem; color: #38bdf8; font-weight: bold; border: 1px solid #38bdf8; border-radius: 999px; }
+        .sim-container { background: #0f172a; border: 1px solid #334155; border-radius: 16px; padding: 2rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+        .sim-panel { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; }
+        .sim-input { width: 100%; background: #0f172a; border: 1px solid #475569; color: #a5f3fc; padding: 0.75rem; border-radius: 6px; font-family: 'Roboto Mono', monospace; font-size: 0.75rem; word-break: break-all; transition: all 0.2s; }
+        .sim-input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        .input-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.5rem; font-weight: bold; }
+        .btn-gen { padding: 2px 8px; background: #334155; border-radius: 4px; font-size: 0.7rem; color: #cbd5e1; cursor: pointer; border: 1px solid #475569; }
+        .btn-gen:hover { background: #475569; color: white; }
+        .btn-action { width: 100%; padding: 1rem; border-radius: 8px; font-weight: bold; margin-top: 1rem; transition: transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer; }
+        .btn-sign { background: linear-gradient(to right, #db2777, #be185d); color: white; }
+        .btn-verify { background: linear-gradient(to right, #2563eb, #1d4ed8); color: white; }
+        .btn-action:active { transform: scale(0.98); }
+
+        .curve-selector { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .curve-option { flex: 1; padding: 1rem; border: 1px solid #475569; border-radius: 8px; cursor: pointer; text-align: center; background: #1e293b; opacity: 0.6; transition: all 0.2s; }
+        .curve-option.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); opacity: 1; box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); }
+        .curve-spec { font-size: 0.7rem; color: #64748b; margin-top: 4px; }
+
+        .log-box { background: #000; border: 1px solid #334155; border-radius: 8px; padding: 1rem; font-family: 'Roboto Mono', monospace; font-size: 0.75rem; color: #cbd5e1; height: 180px; overflow-y: auto; line-height: 1.8; }
+        .log-line { margin-bottom: 4px; border-bottom: 1px dashed #222; padding-bottom: 4px; display: flex; gap: 10px; }
+        .badge { font-weight: bold; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; min-width: 60px; text-align: center; }
+        .badge-info { background: #334155; color: #94a3b8; }
+        .badge-scalar { background: #1e3a8a; color: #93c5fd; border: 1px solid #3b82f6; }
+        .badge-ecc { background: #7c2d12; color: #fdba74; border: 1px solid #f97316; }
+        .badge-success { background: #064e3b; color: #34d399; border: 1px solid #10b981; }
+        .badge-error { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
+        .log-content { flex-grow: 1; word-break: break-all; }
+
+        /* Geometry Visualizer */
+        .geo-container { display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; background: #1e293b; padding: 2rem; border-radius: 12px; margin-top: 2rem; border: 1px solid #334155; }
+        @media (max-width: 1024px) { .geo-container { grid-template-columns: 1fr; } }
+
+        .graph-box { background: #0f172a; border-radius: 8px; border: 1px solid #475569; position: relative; height: 450px; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .graph-svg { width: 100%; height: 100%; cursor: crosshair; }
+        
+        /* SVG Elements */
+        .curve-path { fill: none; stroke: #475569; stroke-width: 2; transition: d 0.5s ease; }
+        .axis { stroke: #334155; stroke-width: 1; stroke-dasharray: 4 4; }
+        .grid-line { stroke: #1e293b; stroke-width: 1; opacity: 0.2; }
+        
+        .point { r: 6; transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; }
+        .point-G { fill: #facc15; } .point-Q { fill: #60a5fa; }
+        .point-A { fill: #93c5fd; opacity: 0; } .point-B { fill: #c084fc; opacity: 0; }
+        .point-P { fill: #22c55e; opacity: 0; } 
+        .point-Px { fill: #22c55e; stroke: #0f172a; stroke-width: 2px; r: 5; opacity: 0; }
+        .point-R { fill: none; stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 3 3; r: 8; opacity: 0; } 
+        
+        .point-I { fill: #94a3b8; stroke: #fff; stroke-width: 2px; r: 5; opacity: 0; } 
+        
+        /* Lines */
+        .line-add { stroke: #e879f9; stroke-width: 2; opacity: 0; transition: opacity 0.5s; }
+        .line-drop { stroke: #22c55e; stroke-width: 2; stroke-dasharray: 4 4; opacity: 0; transition: opacity 0.5s; }
+        .line-flip { stroke: #facc15; stroke-width: 2; marker-end: url(#arrow); opacity: 0; transition: opacity 0.5s; } /* Flip Arrow */
+        
+        .label-text { font-size: 14px; fill: #cbd5e1; font-weight: bold; opacity: 0; transition: opacity 0.5s; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+
+        .geo-info { display: flex; flex-direction: column; justify-content: space-between; }
+        .geo-step-box { background: rgba(15, 23, 42, 0.5); border: 1px solid #334155; padding: 1.5rem; border-radius: 8px; flex-grow: 1; }
+        .geo-title { font-size: 1.2rem; font-weight: bold; color: #fff; margin-bottom: 1rem; border-bottom: 2px solid #334155; padding-bottom: 0.5rem; }
+        .geo-desc { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem; }
+        
+        .val-card { background: #1e293b; padding: 0.8rem; border-radius: 6px; border: 1px solid #475569; margin-bottom: 0.8rem; }
+        .val-label { font-size: 0.75rem; color: #64748b; font-weight: bold; display: flex; justify-content: space-between; }
+        .val-data { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; color: #a5f3fc; word-break: break-all; margin-top: 2px; }
+        .val-card.active { border-color: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.2); }
+        .val-card.active .val-label { color: #facc15; }
+
+        .controls { display: flex; gap: 1rem; margin-top: 1rem; }
+        .btn-vis { padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; font-size: 0.9rem; transition: all 0.2s; flex: 1; }
+        .btn-vis-prev { background: #475569; color: white; }
+        .btn-vis-prev:hover { background: #334155; }
+        .btn-vis-prev:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-vis-next { background: #3b82f6; color: white; }
+        .btn-vis-next:hover { background: #2563eb; }
+        .btn-vis-reset { background: transparent; border: 1px solid #475569; color: #94a3b8; flex: 0 0 auto; }
+        .btn-vis-reset:hover { border-color: #cbd5e1; color: white; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-7xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-teal-500 font-bold tracking-wider text-sm uppercase">ECC Application</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                ECDSA<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">Elliptic Curve Digital Signature Algorithm</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">
+                "평문은 그대로 보내고, 서명(Signature)만 추가하여 진본임을 증명합니다."
+            </p>
+        </header>
+
+        <section class="page-section mb-12">
+            <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-teal-500 pl-4">PART 1. 서명 생성과 검증의 원리</h2>
+            
+            <div class="var-map">
+                <div class="var-col">
+                    <div class="var-header text-blue-400">🌐 1. 공용 규칙 (Domain)</div>
+                    <div class="var-item"><span class="var-symbol">G</span> <span>기준점 (Start Point)</span></div>
+                    <div class="var-item"><span class="var-symbol">n</span> <span>순환 주기 (Order)</span></div>
+                </div>
+                <div class="var-col">
+                    <div class="var-header text-pink-400">🔐 2. 나만의 비밀 (Private)</div>
+                    <div class="var-item"><span class="var-symbol">d</span> <span>개인키 (내 점프 횟수)</span></div>
+                    <div class="var-item"><span class="var-symbol">k</span> <span>임시 난수 (1회용 비밀)</span></div>
+                </div>
+                <div class="var-col">
+                    <div class="var-header text-green-400">⚙️ 3. 계산 결과 (Result)</div>
+                    <div class="var-item"><span class="var-symbol">R</span> <span>임시 점 (\(k \times G\))</span></div>
+                    <div class="var-item"><span class="var-symbol">r</span> <span>R의 x좌표 (\(R.x\))</span></div>
+                </div>
+            </div>
+
+            <div class="process-step">
+                <span class="actor-label actor-alice">Alice (Signer)</span>
+                <h3 class="font-bold text-white mb-4">서명 생성 프로세스</h3>
+                <div class="formula-box formula-sign space-y-3">
+                    <div>
+                        <span class="text-slate-400 font-bold text-xs block mb-1">STEP A: 임시 대역(Avatar) 생성</span>
+                        <div class="text-lg">\( R = k \times G \)</div>
+                        <div class="text-sm text-slate-500">
+                            👉 1회용 비밀(\(k\))로 임시 점(\(R\))을 만듭니다. 여기서 \(x\)좌표를 <strong>\(r\)</strong>로 사용합니다.
+                        </div>
+                    </div>
+                    <div class="border-t border-slate-600 pt-3">
+                        <span class="text-slate-400 font-bold text-xs block mb-1">STEP B: 증명값 계산 (Binding)</span>
+                        <div class="text-lg">\( s = k^{-1} (z + r \cdot d) \pmod n \)</div>
+                        <div class="text-sm text-slate-500">
+                            👉 메시지(\(z\))와 내 진짜 비밀(\(d\))을 섞은 뒤, 임시 비밀(\(k\))의 역수로 잠급니다.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flow-diagram">
+                <div class="flow-node">
+                    <div class="flow-icon">👩‍💻</div>
+                    <div class="font-bold text-pink-400">Alice</div>
+                    <div class="text-xs text-slate-500">Sender</div>
+                </div>
+                <div class="flow-arrow">
+                    <div class="packet-container">
+                        <div class="packet-msg">📄 Message</div>
+                        <div class="packet-sig">✍️ (r, s)</div>
+                    </div>
+                </div>
+                <div class="flow-node">
+                    <div class="flow-icon">🕵️‍♂️</div>
+                    <div class="font-bold text-blue-400">Bob</div>
+                    <div class="text-xs text-slate-500">Verifier</div>
+                </div>
+            </div>
+
+            <div class="process-step">
+                <span class="actor-label actor-bob">Bob (Verifier)</span>
+                <h3 class="font-bold text-white mb-2">2. 서명 검증 (Connected Flow)</h3>
+                <p class="text-sm text-slate-400">밥은 앨리스가 보낸 \((r, s)\)를 사용하여 점 \(P\)를 복원합니다.</p>
+                
+                <div class="verify-flow">
+                    <div class="v-step">
+                        <div class="v-step-header"><span>Step 1. 준비 (Inverse)</span> <span class="hl-inv">w 계산</span></div>
+                        <div class="v-step-formula">\( w = s^{-1} \pmod n \)</div>
+                    </div>
+                    <div class="v-step">
+                        <div class="v-step-header"><span>Step 2. 비율 계산 (Factors)</span> <span class="hl-mix">u1, u2 계산</span></div>
+                        <div class="v-step-formula">
+                            \( u_1 = z \cdot w \pmod n \)<br>
+                            \( u_2 = r \cdot w \pmod n \)
+                        </div>
+                    </div>
+                    <div class="v-step">
+                        <div class="v-step-header"><span>Step 3. 점 복원 (Reconstruction)</span> <span class="hl-pt">P 계산</span></div>
+                        <div class="v-step-formula">\( \mathbf{P} = (u_1 \times G) + (u_2 \times \mathbf{Q}) \)</div>
+                    </div>
+                    <div class="v-step final">
+                        <div class="v-step-header"><span class="text-green-400">Step 4. 최종 확인 (Match)</span></div>
+                        <div class="v-step-formula">Check: \( P.x \overset{?}{==} r \)</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sim-section">
+            <span class="sim-badge">👇 PART 2. Real-World Engine & Interactive Geometry</span>
+            
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-white mb-2">실전! 256-bit ECDSA Simulator</h2>
+                <p class="text-slate-400 text-sm">실제 계산된 값이 그래프 위에서 어떻게 움직이는지 확인하세요.</p>
+            </div>
+
+            <div class="sim-container">
+                <div class="curve-selector">
+                    <div class="curve-option active" onclick="setCurve('secp256k1')" id="curve-secp256k1">
+                        <div class="font-bold text-lg text-orange-400">Bitcoin (secp256k1)</div>
+                        <div class="curve-spec">y² = x³ + 7</div>
+                    </div>
+                    <div class="curve-option" onclick="setCurve('P-256')" id="curve-P-256">
+                        <div class="font-bold text-lg text-blue-400">Web (NIST P-256)</div>
+                        <div class="curve-spec">y² = x³ - 3x + b</div>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <div class="sim-panel border-pink-500/30">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-pink-400">Step 1. Sign (Alice)</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div><div class="input-label"><span>Message</span></div><input type="text" id="msg-input" class="sim-input" value="Hello ECC" oninput="updateHash()"></div>
+                            <div><div class="input-label"><span>Hash (z)</span></div><input type="text" id="msg-hash" class="sim-input text-slate-500" readonly></div>
+                            <div><div class="input-label"><span>Private Key (d)</span><button class="btn-gen" onclick="genRandom('d')">🎲 Gen</button></div><input type="text" id="priv-d" class="sim-input" placeholder="Hex value"></div>
+                            <div><div class="input-label"><span>Nonce (k)</span><button class="btn-gen" onclick="genRandom('k')">🎲 Gen</button></div><input type="text" id="nonce-k" class="sim-input" placeholder="Hex value"></div>
+                            <button onclick="performSign()" class="btn-action btn-sign">🚀 서명 생성 (Run)</button>
+                        </div>
+                    </div>
+
+                    <div class="sim-panel border-blue-500/30">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-blue-400">Step 2. Verify (Bob)</h3>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="bg-slate-900 p-3 rounded border border-slate-700">
+                                <div class="text-xs text-slate-500 font-bold mb-2">PACKET DATA</div>
+                                <div class="mb-2"><span class="text-pink-400 text-xs font-bold block">r:</span><input type="text" id="sig-r" class="sim-input border-0 bg-transparent p-0 text-xs" readonly></div>
+                                <div><span class="text-pink-400 text-xs font-bold block">s:</span><input type="text" id="sig-s" class="sim-input border-0 bg-transparent p-0 text-xs" readonly></div>
+                            </div>
+                            <div><div class="input-label"><span class="text-blue-300">Received Message</span><span class="text-xs font-normal text-slate-500">위변조 테스트 가능</span></div><input type="text" id="verify-msg" class="sim-input border-blue-500/50" value=""></div>
+                            <button onclick="performVerify()" class="btn-action btn-verify">🔍 서명 검증 (Run)</button>
+                            <div id="verify-result" class="hidden text-center p-4 rounded-lg font-bold text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 mb-8">
+                    <div class="flex justify-between items-center mb-2"><h4 class="text-sm font-bold text-slate-400">📟 Operation Log</h4><button onclick="clearLog()" class="text-xs text-slate-500 hover:text-white">Clear</button></div>
+                    <div id="console-log" class="log-box custom-scrollbar"><div class="log-line"><span class="badge badge-info">INFO</span><span class="log-content">System Ready.</span></div></div>
+                </div>
+
+                <div class="geo-container">
+                    <div class="graph-box">
+                        <svg class="graph-svg" viewBox="0 0 400 400" id="geo-svg" preserveAspectRatio="xMidYMid meet">
+                            <defs>
+                                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="1"/></pattern>
+                                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                                    <path d="M0,0 L0,6 L9,3 z" fill="#facc15" />
+                                </marker>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#grid)" />
+                            <line x1="20" y1="200" x2="380" y2="200" class="axis" />
+                            <line x1="200" y1="20" x2="200" y2="380" class="axis" />
+                            
+                            <path id="real-curve" class="curve-path" />
+                            
+                            <circle class="point point-G" id="pt-G"><title>G</title></circle>
+                            <text class="label-text" id="lbl-G">G</text>
+                            <circle class="point point-Q" id="pt-Q"><title>Q</title></circle>
+                            <text class="label-text" id="lbl-Q">Q</text>
+                            
+                            <circle class="point point-R" id="pt-R"><title>Target R</title></circle>
+                            <text class="label-text" id="lbl-R" style="fill:#94a3b8;">Target R</text>
+
+                            <circle class="point point-A" id="pt-A"><title>u1*G</title></circle>
+                            <text class="label-text" id="lbl-A">A</text>
+                            <circle class="point point-B" id="pt-B"><title>u2*Q</title></circle>
+                            <text class="label-text" id="lbl-B">B</text>
+                            
+                            <circle class="point point-P" id="pt-P" r="7"><title>P</title></circle>
+                            <text class="label-text" id="lbl-P">P</text>
+                            <circle class="point point-Px" id="pt-Px" r="5"><title>P.x</title></circle> <circle class="point point-I" id="pt-I" r="5"><title>Intersection</title></circle>
+                            <text class="label-text" id="lbl-I" style="fill:#94a3b8;">Intersection</text>
+
+                            <line class="line-add" id="ln-add" />
+                            
+                            <line class="line-flip" id="ln-flip" />
+                            
+                            <line class="line-drop" id="ln-drop" />
+                            
+                            <text class="label-text" id="lbl-Px" style="fill:#22c55e;">P.x</text>
+                        </svg>
+                    </div>
+
+                    <div class="geo-info">
+                        <div class="geo-step-box">
+                            <div class="geo-title" id="geo-step-title">STEP 0: 준비 완료</div>
+                            <div class="geo-desc" id="geo-step-desc">그래프 위에 <strong>기준점 G</strong>와 <strong>공개키 Q</strong>가 있습니다. 회색 점선 원은 우리가 도달해야 할 <strong>목표 지점 R (Target R)</strong>입니다.</div>
+                            
+                            <div class="val-card" id="card-u1"><div class="val-label"><span>Factor 1 (u1)</span> <span>Message Power</span></div><div class="val-data" id="val-u1">-</div></div>
+                            <div class="val-card" id="card-u2"><div class="val-label"><span>Factor 2 (u2)</span> <span>Signature Power</span></div><div class="val-data" id="val-u2">-</div></div>
+                            <div class="val-card" id="card-P"><div class="val-label"><span>Result Point (P)</span> <span>Final Position</span></div><div class="val-data" id="val-P">-</div></div>
+                        </div>
+
+                        <div class="controls">
+                            <button class="btn-vis btn-vis-reset" onclick="resetGeo()">↺ 처음부터</button>
+                            <button id="btn-prev" class="btn-vis btn-vis-prev" onclick="prevGeo()">⬅ 이전</button>
+                            <button id="btn-next" class="btn-vis btn-vis-next" onclick="nextGeo()">다음 단계 ➔</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // --- REAL GRAPH ENGINE (MATH PERFECT) ---
+        const SVG_SIZE = 400; 
+        let currentCurveType = 'secp256k1';
+
+        const CURVE_VIZ_CONFIG = {
+            'secp256k1': { 
+                offsetX: 200, offsetY: 200, scale: 40, // Updated to 40 per request
+                startX: -1.9129, endX: 3.5 
+            },
+            'P-256': { 
+                offsetX: 200, offsetY: 200, scale: 40, 
+                startX: -1.32, endX: 2.8 
+            }
+        };
+
+        function mapToSvg(x, y) { 
+            const config = CURVE_VIZ_CONFIG[currentCurveType];
+            return { x: config.offsetX + x * config.scale, y: config.offsetY - y * config.scale }; 
+        }
+
+        function getCurveY(x) {
+            let val;
+            if (currentCurveType === 'secp256k1') {
+                val = Math.pow(x, 3) + 7;
+            } else {
+                val = Math.pow(x, 3) - x + 1;
+            }
+            if (val < 0) return null;
+            return Math.sqrt(val);
+        }
+
+        // Draw Symmetric Curve (+Y and -Y)
+        function drawCurve() {
+            let pathPositive = "";
+            let pathNegative = "";
+            const config = CURVE_VIZ_CONFIG[currentCurveType];
+            let drawing = false;
+
+            for (let x = config.startX; x <= config.endX; x += 0.05) {
+                let y = getCurveY(x);
+                if (y !== null) {
+                    let pPos = mapToSvg(x, y);
+                    let pNeg = mapToSvg(x, -y);
+                    
+                    let cmd = drawing ? "L" : "M";
+                    pathPositive += `${cmd} ${pPos.x.toFixed(1)} ${pPos.y.toFixed(1)} `;
+                    pathNegative += `${cmd} ${pNeg.x.toFixed(1)} ${pNeg.y.toFixed(1)} `;
+                    drawing = true;
+                } else {
+                    drawing = false;
+                }
+            }
+            document.getElementById('real-curve').setAttribute('d', pathPositive + " " + pathNegative);
+        }
+
+        // Logic Points
+        let vG, vQ, vA, vB, vP, vIntersection;
+
+        function calcPoints() {
+            let xA, xB;
+            
+            if (currentCurveType === 'secp256k1') {
+                // Bitcoin Curve
+                xA = 0.5; xB = 1.5; 
+                vA = {x: xA, y: getCurveY(xA)};
+                vB = {x: xB, y: getCurveY(xB)}; 
+                vG = {x: -1.0, y: getCurveY(-1.0)};
+                vQ = {x: 2.0, y: getCurveY(2.0)};
+            } else {
+                // Web Curve
+                vG = {x: -1.0, y: 1.0}; 
+                xA = 1.5; xB = 2.5;
+                vA = {x: xA, y: getCurveY(xA)}; 
+                vB = {x: xB, y: getCurveY(xB)}; 
+                vQ = {x: 2.8, y: getCurveY(2.8)};
+            }
+
+            // Exact Geometric Addition
+            const slope = (vB.y - vA.y) / (vB.x - vA.x);
+            const xP_math = Math.pow(slope, 2) - vA.x - vB.x; 
+            const y_on_line = slope * (xP_math - vA.x) + vA.y;
+            
+            // Intersection Point (Mathematically derived)
+            vIntersection = {x: xP_math, y: y_on_line};
+            
+            // The Result P is the reflection
+            vP = {x: xP_math, y: -y_on_line};
+        }
+
+        // --- GEOMETRY VISUALIZER LOGIC ---
+        let geoStep = 0;
+        const totalGeoSteps = 5;
+        let geoSteps = []; 
+
+        function initGeoSteps() {
+            geoSteps = [
+                { 
+                    title: "STEP 0: 준비 (Setup)", 
+                    desc: "그래프 위에 <strong>기준점 G</strong>와 <strong>공개키 Q</strong>가 있습니다. <br>회색 점선 원은 우리가 도달해야 할 <strong>목표 지점 R (Target R)</strong>입니다.",
+                    activeEls: ['pt-G', 'lbl-G', 'pt-Q', 'lbl-Q', 'pt-R', 'lbl-R'],
+                    highlight: []
+                },
+                { 
+                    title: "STEP 1: 메시지의 힘 (Point A)", 
+                    desc: "<code>u1</code> 만큼 기준점 G를 덧셈하여 <strong>점 A</strong>(양수 좌표)에 도착합니다.",
+                    activeEls: ['pt-G', 'lbl-G', 'pt-Q', 'lbl-Q', 'pt-R', 'lbl-R', 'pt-A', 'lbl-A'],
+                    highlight: ['card-u1']
+                },
+                { 
+                    title: "STEP 2: 서명의 힘 (Point B)", 
+                    desc: "<code>u2</code> 만큼 공개키 Q를 덧셈하여 <strong>점 B</strong>(양수 좌표)에 도착합니다.",
+                    activeEls: ['pt-G', 'lbl-G', 'pt-Q', 'lbl-Q', 'pt-R', 'lbl-R', 'pt-A', 'lbl-A', 'pt-B', 'lbl-B'],
+                    highlight: ['card-u2']
+                },
+                { 
+                    title: "STEP 3: 점 더하기 (P = A + B)", 
+                    desc: "점 A와 점 B를 잇는 직선을 긋습니다. <br>곡선 위의 교차점(Intersection)에서 <strong>화살표를 따라 대칭이동(Flip)</strong>하면 <strong>최종 점 P</strong>가 됩니다.",
+                    activeEls: ['pt-G', 'lbl-G', 'pt-Q', 'lbl-Q', 'pt-R', 'lbl-R', 'pt-A', 'lbl-A', 'pt-B', 'lbl-B', 'ln-add', 'pt-I', 'lbl-I', 'ln-flip', 'pt-P', 'lbl-P'],
+                    lines: { 'ln-add': [vIntersection, vB], 'ln-flip': [vIntersection, vP] }, 
+                    highlight: ['card-P']
+                },
+                { 
+                    title: "STEP 4: 좌표 비교 (P.x == r)", 
+                    desc: "점 P에서 수직선을 내려 <strong>x좌표(녹색 점)</strong>를 확인합니다. <br>이 값이 앨리스가 보낸 <strong>r</strong>과 같으면 검증 성공입니다.",
+                    activeEls: ['pt-G', 'lbl-G', 'pt-Q', 'lbl-Q', 'pt-R', 'lbl-R', 'pt-A', 'lbl-A', 'pt-B', 'lbl-B', 'ln-add', 'pt-I', 'ln-flip', 'pt-P', 'lbl-P', 'ln-drop', 'lbl-Px', 'pt-Px'],
+                    lines: { 'ln-add': [vIntersection, vB], 'ln-flip': [vIntersection, vP], 'ln-drop': [vP, {x: vP.x, y: 0}] },
+                    highlight: ['card-P']
+                }
+            ];
+        }
+
+        function setSvgPos(id, logicPt) {
+            const el = document.getElementById(id);
+            if(!el) return;
+            const p = mapToSvg(logicPt.x, logicPt.y);
+            if(el.tagName === 'circle') { el.setAttribute('cx', p.x); el.setAttribute('cy', p.y); } 
+            else if (el.tagName === 'text') { el.setAttribute('x', p.x + 10); el.setAttribute('y', p.y - 10); }
+        }
+
+        function setLinePos(id, startPt, endPt) {
+            const el = document.getElementById(id);
+            const p1 = mapToSvg(startPt.x, startPt.y);
+            let p2;
+            const config = CURVE_VIZ_CONFIG[currentCurveType];
+
+            if (id === 'ln-drop') { 
+                const axisY = config.offsetY;
+                el.setAttribute('x1', p1.x); el.setAttribute('y1', p1.y); 
+                el.setAttribute('x2', p1.x); el.setAttribute('y2', axisY);
+            } 
+            else if (id === 'ln-add') {
+                p2 = mapToSvg(endPt.x, endPt.y); 
+                el.setAttribute('x1', p1.x); el.setAttribute('y1', p1.y); 
+                el.setAttribute('x2', p2.x); el.setAttribute('y2', p2.y);
+            }
+            else if (id === 'ln-flip') {
+                p2 = mapToSvg(endPt.x, endPt.y);
+                el.setAttribute('x1', p1.x); el.setAttribute('y1', p1.y);
+                el.setAttribute('x2', p2.x); el.setAttribute('y2', p2.y);
+            }
+        }
+
+        function renderGeo(index) {
+            document.getElementById('geo-step-title').innerHTML = geoSteps[index].title;
+            document.getElementById('geo-step-desc').innerHTML = geoSteps[index].desc;
+
+            const allIds = ['pt-G', 'lbl-G', 'pt-Q', 'lbl-Q', 'pt-R', 'lbl-R', 'pt-A', 'lbl-A', 'pt-B', 'lbl-B', 'pt-P', 'lbl-P', 'ln-add', 'ln-drop', 'lbl-Px', 'ln-drop-int', 'pt-Px', 'pt-I', 'lbl-I', 'ln-flip'];
+            allIds.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.opacity = '0';
+            }); 
+            
+            geoSteps[index].activeEls.forEach(id => { 
+                const el = document.getElementById(id);
+                if(el) el.style.opacity = '1'; 
+            });
+
+            // Target R is exactly at P
+            const targetR = vP; 
+
+            setSvgPos('pt-G', vG); setSvgPos('lbl-G', vG);
+            setSvgPos('pt-Q', vQ); setSvgPos('lbl-Q', vQ);
+            setSvgPos('pt-R', targetR); setSvgPos('lbl-R', targetR);
+            setSvgPos('pt-A', vA); setSvgPos('lbl-A', vA);
+            setSvgPos('pt-B', vB); setSvgPos('lbl-B', vB);
+            
+            setSvgPos('pt-I', vIntersection); 
+            // Label I position
+            const pI = mapToSvg(vIntersection.x, vIntersection.y);
+            const lblI = document.getElementById('lbl-I');
+            lblI.setAttribute('x', pI.x - 70); lblI.setAttribute('y', pI.y + 5);
+
+            setSvgPos('pt-P', vP); 
+            // Fix Label P Position (Move Left)
+            const pP = mapToSvg(vP.x, vP.y);
+            const lblP = document.getElementById('lbl-P');
+            lblP.setAttribute('x', pP.x - 25); lblP.setAttribute('y', pP.y + 5);
+
+            setSvgPos('pt-Px', {x: vP.x, y: 0}); 
+            
+            const px = mapToSvg(vP.x, 0);
+            const config = CURVE_VIZ_CONFIG[currentCurveType];
+            const lblPx = document.getElementById('lbl-Px');
+            lblPx.setAttribute('x', px.x - 10); lblPx.setAttribute('y', config.offsetY + 20);
+
+            if(geoSteps[index].lines) {
+                if(geoSteps[index].lines['ln-add']) setLinePos('ln-add', geoSteps[index].lines['ln-add'][0], geoSteps[index].lines['ln-add'][1]);
+                if(geoSteps[index].lines['ln-drop']) setLinePos('ln-drop', geoSteps[index].lines['ln-drop'][0], geoSteps[index].lines['ln-drop'][1]);
+                if(geoSteps[index].lines['ln-flip']) setLinePos('ln-flip', geoSteps[index].lines['ln-flip'][0], geoSteps[index].lines['ln-flip'][1]);
+            }
+
+            document.querySelectorAll('.val-card').forEach(el => el.classList.remove('active'));
+            if(geoSteps[index].highlight) { geoSteps[index].highlight.forEach(id => document.getElementById(id).classList.add('active')); }
+
+            const btnPrev = document.getElementById('btn-prev');
+            const btnNext = document.getElementById('btn-next');
+            if(index === 0) { btnPrev.disabled = true; btnPrev.style.opacity = "0.5"; } else { btnPrev.disabled = false; btnPrev.style.opacity = "1"; }
+            if(index === totalGeoSteps - 1) { btnNext.innerHTML = "✨ 완료"; btnNext.classList.replace('btn-vis-next', 'btn-vis-reset'); btnNext.onclick = resetGeo; } 
+            else { btnNext.innerHTML = "다음 단계 ➔"; btnNext.classList.remove('btn-vis-reset'); btnNext.classList.add('btn-vis-next'); btnNext.onclick = nextGeo; }
+        }
+
+        function nextGeo() { if(geoStep < totalGeoSteps - 1) { geoStep++; renderGeo(geoStep); } }
+        function prevGeo() { if(geoStep > 0) { geoStep--; renderGeo(geoStep); } }
+        function resetGeo() { geoStep = 0; renderGeo(0); }
+
+        function refreshGraph() {
+            drawCurve();
+            calcPoints();
+            initGeoSteps();
+            renderGeo(geoStep);
+        }
+
+        // --- SIMULATOR ---
+        const _0n=0n,_1n=1n,_2n=2n,_3n=3n;function mod(n,m){return((n%m)+m)%m;}function modInverse(a,m){let m0=m,y=_0n,x=_1n;if(m===_1n)return _0n;a=mod(a,m);while(a>_1n){let q=a/m,t=m;m=a%m;a=t;t=y;y=x-q*y;x=t;}if(x<_0n)x+=m0;return x;}
+        const CURVES={'secp256k1':{p:0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn,a:0n,b:7n,Gx:0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n,Gy:0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n,n:0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n,name:'secp256k1'},'P-256':{p:0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFFn,a:0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFCn,b:0x5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604Bn,Gx:0x6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296n,Gy:0x4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5n,n:0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551n,name:'NIST P-256'}};let C=CURVES['secp256k1'];
+        function pointAdd(p1,p2){if(!p1)return p2;if(!p2)return p1;const{x:x1,y:y1}=p1,{x:x2,y:y2}=p2;if(x1===x2&&y1!==y2)return null;let lam;if(x1===x2&&y1===y2){lam=mod((_3n*x1*x1+C.a)*modInverse(_2n*y1,C.p),C.p);}else{lam=mod((y2-y1)*modInverse(x2-x1,C.p),C.p);}const x3=mod(lam*lam-x1-x2,C.p),y3=mod(lam*(x1-x3)-y1,C.p);return{x:x3,y:y3};}
+        function pointMul(k,p){let R=null,P=p,bits=k.toString(2);for(let i=bits.length-1;i>=0;i--){if(bits[i]==='1')R=pointAdd(R,P);P=pointAdd(P,P);}return R;}
+        function randBigInt(max){const b=Math.ceil(max.toString(16).length/2),buf=new Uint8Array(b);window.crypto.getRandomValues(buf);const h='0x'+Array.from(buf).map(x=>x.toString(16).padStart(2,'0')).join('');return BigInt(h)%max;}
+        function toHex(n){return n.toString(16).padStart(64,'0');}
+        function log(m,t='info'){const b=document.getElementById('console-log');let c='badge-info',txt='INFO';if(t==='scalar'){c='badge-scalar';txt='SCALAR';}if(t==='ecc'){c='badge-ecc';txt='ECC OP';}if(t==='success'){c='badge-success';txt='SUCCESS';}if(t==='error'){c='badge-error';txt='ERROR';}b.innerHTML+=`<div class="log-line"><span class="badge ${c}">${txt}</span><span class="log-content">${m}</span></div>`;b.scrollTop=b.scrollHeight;}
+        function clearLog(){document.getElementById('console-log').innerHTML='';}
+        
+        function setCurve(n){
+            C=CURVES[n]; 
+            currentCurveType=n; 
+            document.querySelectorAll('.curve-option').forEach(e=>e.classList.remove('active'));
+            document.getElementById('curve-'+n).classList.add('active');
+            genRandom('d'); genRandom('k'); updateHash(); 
+            log(`Switched to ${C.name}`, 'info');
+            refreshGraph(); // Update Graph
+        }
+        
+        async function updateHash(){const m=document.getElementById('msg-input').value,b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));const h=Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');document.getElementById('msg-hash').value=h;return BigInt('0x'+h);}
+        function genRandom(t){const v=randBigInt(C.n);if(v===_0n){genRandom(t);return;}if(t==='d')document.getElementById('priv-d').value=toHex(v);if(t==='k')document.getElementById('nonce-k').value=toHex(v);}
+        async function performSign(){try{log("Signing...",'info');const z=await updateHash(),d=BigInt('0x'+document.getElementById('priv-d').value),k=BigInt('0x'+document.getElementById('nonce-k').value);if(k<=0n||k>=C.n)throw"Invalid k";log("Calculating R = k*G",'ecc');const R=pointMul(k,{x:C.Gx,y:C.Gy}),r=mod(R.x,C.n);log(`r = ${toHex(r).substring(0,8)}...`,'scalar');log("Calculating s...",'scalar');const s=mod(modInverse(k,C.n)*(z+r*d),C.n);document.getElementById('sig-r').value=toHex(r);document.getElementById('sig-s').value=toHex(s);document.getElementById('verify-msg').value=document.getElementById('msg-input').value;document.getElementById('verify-result').className="hidden";log("Done.",'success');}catch(e){log(e,'error');}}
+        async function performVerify(){try{log("Verifying...",'info');const m=document.getElementById('verify-msg').value,b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(m));const z=BigInt('0x'+Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join(''));const r=BigInt('0x'+document.getElementById('sig-r').value),s=BigInt('0x'+document.getElementById('sig-s').value);log("Calculating u1, u2...",'scalar');const w=modInverse(s,C.n),u1=mod(z*w,C.n),u2=mod(r*w,C.n);document.getElementById('val-u1').textContent="0x"+toHex(u1).substring(0,16)+"...";document.getElementById('val-u2').textContent="0x"+toHex(u2).substring(0,16)+"...";const d=BigInt('0x'+document.getElementById('priv-d').value),Q=pointMul(d,{x:C.Gx,y:C.Gy});log("Calculating P = u1*G + u2*Q",'ecc');const P=pointAdd(pointMul(u1,{x:C.Gx,y:C.Gy}),pointMul(u2,Q));document.getElementById('val-P').textContent=P?`(0x${toHex(P.x).substring(0,8)}..., ...)`:"Infinity";const res=document.getElementById('verify-result');if(P&&P.x===r){log("P.x matches r. Valid!",'success');res.innerHTML="✅ VALID SIGNATURE";res.className="mt-4 text-center p-4 rounded-lg bg-green-900/20 border border-green-500 text-green-400 block";}else{log("Mismatch. Invalid.",'error');res.innerHTML="❌ INVALID SIGNATURE";res.className="mt-4 text-center p-4 rounded-lg bg-red-900/20 border border-red-500 text-red-400 block";}}catch(e){log(e,'error');}}
+        
+        window.onload=()=>{setCurve('secp256k1');};
+    </script>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

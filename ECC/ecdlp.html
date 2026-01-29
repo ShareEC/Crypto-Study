@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECC & ECDLP - 완벽 분석 가이드</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Base Styles */
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'sans-serif'; }
+        .page-section { border-bottom: 1px dashed #334155; padding-bottom: 4rem; margin-bottom: 4rem; position: relative; }
+        .page-section:last-child { border-bottom: none; }
+        
+        .math-box { background: rgba(15, 23, 42, 0.8); border: 1px solid #334155; border-left: 4px solid #3b82f6; border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0; font-family: 'Roboto Mono', monospace; color: #e2e8f0; overflow-x: auto; }
+        .concept-card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 2rem; transition: transform 0.2s; }
+        .concept-card:hover { transform: translateY(-2px); border-color: #475569; }
+        
+        .step-badge { display: inline-block; background: linear-gradient(90deg, #3b82f6, #2563eb); color: white; font-size: 0.85rem; font-weight: bold; padding: 6px 16px; border-radius: 9999px; margin-bottom: 1rem; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3); }
+        .step-desc { color: #94a3b8; font-size: 1rem; margin-bottom: 2rem; font-style: italic; border-left: 3px solid #3b82f6; padding-left: 1.5rem; line-height: 1.7; }
+        .key-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 0.5rem; font-weight: bold; }
+        
+        /* Intro Box */
+        .intro-box { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #475569; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+        .intro-box::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: #f59e0b; }
+
+        /* Logic Cards */
+        .logic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+        .logic-card { background: rgba(30, 41, 59, 0.5); border: 1px solid; border-radius: 12px; padding: 1.5rem; position: relative; }
+        .logic-card.easy { border-color: #22c55e; }
+        .logic-card.hard { border-color: #ef4444; }
+        .logic-icon { font-size: 2rem; margin-bottom: 1rem; display: block; }
+        .logic-title { font-weight: bold; font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .logic-desc { font-size: 0.9rem; color: #94a3b8; line-height: 1.6; }
+
+        /* Diagram Box */
+        .diagram-box { background: #0f172a; border: 1px dashed #475569; border-radius: 12px; padding: 2rem; margin-top: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5rem; }
+        @media (min-width: 768px) { .diagram-box { flex-direction: row; justify-content: space-evenly; } }
+
+        /* Algorithm Comparison */
+        .algo-comp { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+        @media (min-width: 768px) { .algo-comp { grid-template-columns: 1fr 1fr; } }
+        .algo-box { padding: 1.5rem; border-radius: 12px; border: 1px solid; position: relative; }
+        .algo-naive { background: rgba(239, 68, 68, 0.05); border-color: #ef4444; }
+        .algo-smart { background: rgba(34, 197, 94, 0.05); border-color: #22c55e; }
+        .algo-header { font-weight: bold; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.1rem; }
+        .algo-step { display: flex; align-items: center; gap: 0.5rem; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #cbd5e1; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .step-arrow { color: #64748b; font-size: 0.8rem; }
+        .step-highlight { color: #facc15; font-weight: bold; }
+
+        /* V40 Simulator Styles */
+        .sim-input { background: #1e293b; border: 1px solid #475569; color: white; padding: 0.5rem 1rem; border-radius: 6px; font-family: 'Roboto Mono', monospace; width: 100%; outline: none; transition: border-color 0.2s; }
+        .sim-input:focus { border-color: #3b82f6; }
+        .sim-btn { background: #2563eb; color: white; padding: 0.5rem 1.5rem; border-radius: 6px; font-weight: bold; transition: background 0.2s; white-space: nowrap; cursor: pointer; }
+        .sim-btn:hover { background: #1d4ed8; }
+        
+        /* Bit Bar Visualizer */
+        .bit-container { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
+        .bit-box { width: 40px; height: 50px; background: #334155; border: 1px solid #475569; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.4; transition: all 0.2s; cursor: pointer; }
+        .bit-box.bit-on { opacity: 1; border-color: #22c55e; background: rgba(34, 197, 94, 0.1); }
+        .bit-box.bit-active { opacity: 1; border-color: #facc15; background: rgba(250, 204, 21, 0.2); box-shadow: 0 0 10px rgba(250, 204, 21, 0.5); transform: scale(1.1); z-index: 10; }
+        
+        .bit-val { font-size: 1.1rem; font-weight: bold; color: white; }
+        .bit-pow { font-size: 0.6rem; color: #94a3b8; font-family: 'Roboto Mono'; margin-top: 2px; }
+
+        /* Log Table */
+        .sim-table-header { display: grid; grid-template-columns: 0.5fr 0.5fr 2fr; gap: 10px; background: #334155; padding: 10px; border-radius: 8px 8px 0 0; font-size: 0.8rem; font-weight: bold; color: #94a3b8; text-align: center; }
+        .sim-log { background: #000; border: 1px solid #334155; border-top: none; border-radius: 0 0 8px 8px; font-family: 'Roboto Mono', monospace; font-size: 0.8rem; height: 350px; overflow-y: auto; color: #cbd5e1; }
+        .sim-row { display: grid; grid-template-columns: 0.5fr 0.5fr 2fr; gap: 10px; padding: 12px 10px; border-bottom: 1px dashed #334155; align-items: center; transition: background 0.1s; cursor: pointer; }
+        .sim-row:hover { background: rgba(255,255,255,0.1); }
+        .sim-row.active-row { background: rgba(250, 204, 21, 0.1); border-left: 3px solid #facc15; }
+        
+        .col-step { color: #64748b; text-align: center; }
+        .col-bit { text-align: center; font-weight: bold; font-size: 1.1em; }
+        .col-action { text-align: left; padding-left: 10px; display: flex; flex-direction: column; gap: 4px; }
+        
+        .tag-bit-1 { color: #22c55e; }
+        .tag-bit-0 { color: #64748b; opacity: 0.5; }
+        .op-text { font-size: 0.85rem; }
+        .op-point-double { color: #60a5fa; }
+        .op-point-add { color: #facc15; font-weight: bold; }
+        .op-geo-desc { font-size: 0.7rem; color: #94a3b8; font-style: italic; }
+
+        /* Code/Toggle View */
+        .code-toggle { background: #1e293b; border: 1px solid #334155; border-radius: 8px; margin-top: 1.5rem; overflow: hidden; }
+        .code-toggle summary { padding: 0.75rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: bold; color: #60a5fa; background: rgba(30, 41, 59, 0.5); display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
+        .code-toggle summary:hover { background: rgba(59, 130, 246, 0.1); }
+        .code-toggle[open] summary { border-bottom: 1px solid #334155; }
+        .code-toggle summary::before { content: "▶"; font-size: 0.7rem; transition: transform 0.2s; }
+        .code-toggle[open] summary::before { transform: rotate(90deg); }
+        .code-content { padding: 1rem; background: #0f172a; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #cbd5e1; overflow-x: auto; line-height: 1.6; white-space: pre; }
+        .concept-content { padding: 1.5rem; background: #0f172a; color: #e2e8f0; font-size: 0.9rem; line-height: 1.6; }
+
+        /* Comparison Table */
+        .comp-table { width: 100%; text-align: left; border-collapse: collapse; }
+        .comp-table th, .comp-table td { padding: 0.75rem; border-bottom: 1px solid #334155; }
+        .comp-table th { color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; }
+        .comp-table td { color: #cbd5e1; }
+        .comp-table tr:last-child td { border-bottom: none; }
+
+        /* Graph Styles */
+        .graph-container { background: #0f172a; border-radius: 8px; border: 1px solid #475569; height: 350px; position: relative; overflow: hidden; }
+        .axis { stroke: #334155; stroke-width: 1; }
+        .curve-path { fill: none; stroke: #3b82f6; stroke-width: 2; transition: d 0.5s ease; }
+        .point { r: 5; stroke: #fff; stroke-width: 2; transition: all 0.3s; cursor: pointer; }
+        .point-P { fill: #ef4444; } .point-Q { fill: #f59e0b; }
+        .point-I { fill: #94a3b8; r: 4; stroke: none; }
+        .point-R { fill: #22c55e; }
+        .line-add { stroke: #e879f9; stroke-width: 2; stroke-dasharray: 4 4; opacity: 0.8; }
+        .line-flip { stroke: #facc15; stroke-width: 2; marker-end: url(#arrow-geo); opacity: 0.8; }
+        .label-text { font-size: 12px; font-weight: bold; fill: #cbd5e1; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        
+        .flow-node { background: #334155; border: 1px solid #475569; padding: 12px; border-radius: 8px; text-align: center; color: #e2e8f0; position: relative; min-width: 120px; }
+        .flow-diamond { transform: rotate(45deg); width: 100px; height: 100px; background: #1e293b; border: 2px solid #f59e0b; display: flex; justify-content: center; align-items: center; margin: 20px auto; }
+        .flow-diamond-inner { transform: rotate(-45deg); text-align: center; font-size: 0.9rem; }
+
+        @media (max-width: 768px) { .logic-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-5xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section">
+            <span class="text-orange-500 font-bold tracking-wider text-sm uppercase">비대칭의 요새</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                타원 곡선 암호 (ECC)<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">SEC 1 표준과 ECDLP 수학적 난제</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">자료 출처: Standards for Efficient Cryptography 1 (SEC 1) Ver. 2.0</p>
+        </header>
+
+        <section class="page-section">
+            <div class="step-badge">Step 1. 개념의 정립 (Definition)</div>
+            <h2 class="section-title text-2xl text-orange-400 mb-6">1. ECDLP란 무엇인가?</h2>
+            
+            <div class="intro-box">
+                <h3 class="text-xl font-bold text-white mb-2">ECDLP (Elliptic Curve Discrete Logarithm Problem)</h3>
+                <p class="text-slate-400 text-sm mb-6">"타원곡선 이산대수 문제"라고 하며, ECC 암호 체계의 안전성을 보장하는 핵심 수학적 난제입니다.</p>
+                
+                <div class="bg-slate-900 rounded-lg p-6 border border-slate-700">
+                    <div class="text-center mb-4">
+                        <span class="text-slate-500 font-bold text-xs uppercase tracking-widest">The Equation</span>
+                        <div class="text-3xl font-mono text-white mt-2">\( Q = k \cdot G \)</div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-center text-sm">
+                        <div class="p-2 border-r border-slate-700">
+                            <span class="text-blue-400 font-bold block">\( Q \) (Result)</span>
+                            <span class="text-slate-500">공개키 (도착점)</span>
+                        </div>
+                        <div class="p-2 border-r border-slate-700">
+                            <span class="text-pink-400 font-bold block">\( k \) (Scalar)</span>
+                            <span class="text-slate-500">개인키 (점프 횟수)</span>
+                        </div>
+                        <div class="p-2">
+                            <span class="text-green-400 font-bold block">\( G \) (Base)</span>
+                            <span class="text-slate-500">기준점 (출발점)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="step-badge">Step 2. 난제의 원리 (The Hardness)</div>
+            <h2 class="section-title text-2xl text-orange-400 mb-6">2. 왜 거꾸로 계산하는 것이 어려운가?</h2>
+            
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 mb-6">
+                <p class="text-slate-300 leading-relaxed mb-6">
+                    ECC는 **"단방향 함수(One-way Function)"**의 성질을 가집니다. 정방향(곱셈)은 효율적인 알고리즘이 존재하지만, 역방향(로그)은 효율적인 해법이 발견되지 않았습니다.
+                </p>
+                
+                <div class="logic-grid mb-6">
+                    <div class="logic-card easy">
+                        <span class="logic-icon">🚀</span>
+                        <div class="logic-title text-green-400">가는 길 (Easy): 지름길 존재</div>
+                        <p class="logic-desc">
+                            \(G\)를 \(k\)번 더할 때, 하나씩 더하지 않습니다.<br>
+                            <strong>Double-and-Add (2배씩 튀기)</strong> 알고리즘을 사용합니다.<br>
+                            이 덕분에 256비트의 거대한 숫자도 순식간에 계산합니다.<br>
+                            <span class="text-xs text-slate-500 mt-1 block">(※ 자세한 원리는 Step 6 참조)</span>
+                        </p>
+                    </div>
+
+                    <div class="logic-card hard">
+                        <span class="logic-icon">🕰️</span>
+                        <div class="logic-title text-red-400">오는 길 (Infeasible): 정보 소실</div>
+                        <p class="logic-desc">
+                            ECC는 <strong>유한체(Modulo)</strong> 위에서 작동합니다.<br>
+                            마치 <strong>"시계 바늘이 3시를 가리킬 때, 어제부터 총 몇 바퀴를 돌아서 3시가 됐는지"</strong> 알 수 없는 것과 같습니다.<br>
+                            결과점 \(Q\)에는 "회전수(\(k\))"에 대한 정보가 남지 않습니다.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="diagram-box">
+                    <div class="text-center">
+                        <div class="text-green-400 font-bold text-sm">Multiplication</div>
+                        <div class="text-slate-300 font-mono text-lg">Q = kP</div>
+                        <div class="text-green-500 font-bold mt-1">➡ Easy</div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="text-4xl mb-1">🧱🔒</div>
+                        <div class="text-orange-500 text-xs font-bold uppercase tracking-wider">Trapdoor Function</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-red-400 font-bold text-sm">Logarithm</div>
+                        <div class="text-slate-300 font-mono text-lg">Find k</div>
+                        <div class="text-red-500 font-bold mt-1">Impossible ⬅</div>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <span class="inline-block bg-red-900/30 text-red-400 text-xs font-bold px-3 py-1 rounded border border-red-500/30">
+                        ⚠️ 주의: "불가능(Impossible)"은 수학적 표현이며, 정확히는 "계산상 실행 불가능(Computationally Infeasible)"입니다.
+                    </span>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="step-badge">Step 3. 무대 세팅 (The Space)</div>
+            <h2 class="section-title text-2xl text-orange-400 mb-4">3. 수학적 기반: 유한체 (Finite Fields)</h2>
+            <p class="step-desc">"컴퓨터가 계산할 수 있는 <strong>'닫힌 정수들의 세계'</strong>를 먼저 깝니다. 앞서 말한 '시계(Modulo)'가 바로 이곳입니다."</p>
+            <div class="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                <h3 class="text-lg font-bold text-blue-400 mb-2">소수체 (Prime Field, \(F_p\))</h3>
+                <p class="text-sm text-slate-300 leading-relaxed mb-4">\(p\)가 홀수인 소수일 때, 모든 연산은 <strong>modulo \(p\)</strong> (나머지 연산)로 수행됩니다.</p>
+                <div class="math-box text-sm">\(a + b \equiv r \pmod p\)</div>
+            </div>
+
+            <details class="code-toggle">
+                <summary class="text-yellow-400">🔍 심화 학습: AES 유한체($GF(2^8)$) vs ECC 유한체($F_p$) 비교하기</summary>
+                <div class="concept-content">
+                    <p class="mb-4 text-slate-300">
+                        기존에 학습한 AES(대칭키)와 ECC(공개키)는 모두 '유한체'를 사용하지만, 그 종류와 연산 방식이 다릅니다.
+                    </p>
+                    <table class="comp-table">
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>AES (Rijndael)</th>
+                                <th>ECC (SEC 1)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="font-bold">유한체 종류</td>
+                                <td><span class="text-pink-400">이진체 (Binary Field)</span><br>\(GF(2^n)\), 주로 \(GF(2^8)\)</td>
+                                <td><span class="text-blue-400">소수체 (Prime Field)</span><br>\(F_p\), 아주 큰 소수 \(p\)</td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold">원소의 형태</td>
+                                <td><strong>다항식 (Polynomial)</strong><br>예: \(x^7 + x^5 + x + 1\)</td>
+                                <td><strong>정수 (Integer)</strong><br>예: \(0, 1, ..., p-1\)</td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold">덧셈 연산</td>
+                                <td><strong>XOR 연산</strong><br>(비트별 더하기, 올림 없음)</td>
+                                <td><strong>정수 덧셈 후 Modulo</strong><br>\((a + b) \pmod p\)</td>
+                            </tr>
+                            <tr>
+                                <td class="font-bold">목적</td>
+                                <td>비트 단위의 고속 확산/혼돈</td>
+                                <td>정수론적 난제(이산대수) 구현</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        </section>
+
+        <section class="page-section">
+            <div class="step-badge">Step 4. 무대 위에 건물 짓기</div>
+            <h2 class="section-title text-2xl text-orange-400 mb-4">4. 타원 곡선의 형상 (The Shape)</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-xl font-bold text-white mb-2">바이어슈트라스 표준형</h3>
+                    <div class="math-box text-center text-lg">\(y^2 = x^3 + ax + b\)</div>
+                </div>
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <h3 class="text-xl font-bold text-white mb-2">판별식 (Non-singular)</h3>
+                    <div class="math-box text-center text-lg">\(4a^3 + 27b^2 \neq 0\)</div>
+                    <p class="text-xs text-red-400 mt-2 text-center">※ 그래프가 꼬이거나 뾰족하면 안 됩니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="step-badge">Step 5. 움직이는 규칙 정하기</div>
+            <h2 class="section-title text-2xl text-orange-400 mb-4">5. 그룹 법칙: 점 덧셈 (Point Addition)</h2>
+            <p class="step-desc">"기하학적 행동(접선 긋기, 대칭)을 컴퓨터가 이해하는 <strong>'대수적 코드(공식)'</strong>로 변환합니다."</p>
+            
+            <div class="bg-indigo-900/30 border border-indigo-500/50 p-4 rounded-lg mb-6 text-center">
+                <span class="text-indigo-400 font-bold text-sm tracking-wider uppercase">✨ Mathematical Premise (수학적 대전제)</span>
+                <div class="text-lg text-white font-bold mt-2">"일직선 위에 있는 세 점의 합은 항상 0(무한원점)이다."</div>
+                <div class="text-xl font-mono text-yellow-400 mt-1">\( P + Q + I = \mathcal{O} \)</div>
+                <div class="text-sm text-slate-400 mt-2">
+                    따라서, 우리가 구하려는 합 \(P+Q\)는 교차점 \(I\)의 역원(반대편 점)이 됩니다.<br>
+                    <strong>\( P + Q = -I = R \)</strong>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                    <div>
+                        <span class="key-label block mb-2 text-center">GEOMETRY (기하학적 원리)</span>
+                        <div class="graph-container">
+                            <svg width="100%" height="100%" viewBox="0 0 300 300" id="ecc-geo-graph">
+                                <defs>
+                                    <marker id="arrow-geo" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                        <path d="M0,0 L0,6 L9,3 z" fill="#facc15" />
+                                    </marker>
+                                    <pattern id="grid-geo" width="20" height="20" patternUnits="userSpaceOnUse">
+                                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#334155" stroke-width="0.5" opacity="0.3"/>
+                                    </pattern>
+                                </defs>
+                                <rect width="100%" height="100%" fill="url(#grid-geo)" />
+                                <line x1="10" y1="150" x2="290" y2="150" class="axis" /> 
+                                <line x1="150" y1="10" x2="150" y2="290" class="axis" /> 
+                                
+                                <path id="curve-path-el" class="curve-path" />
+
+                                <line id="ln-add" class="line-add" />
+                                <line id="ln-flip" class="line-flip" />
+                                
+                                <circle id="pt-I" class="point point-I" /><text id="lbl-I" class="label-text" fill="#94a3b8">I</text>
+                                <circle id="pt-P" class="point point-P" /><text id="lbl-P" class="label-text" fill="#ef4444">P</text>
+                                <circle id="pt-Q" class="point point-Q" /><text id="lbl-Q" class="label-text" fill="#f59e0b">Q</text>
+                                <circle id="pt-R" class="point point-R" /><text id="lbl-R" class="label-text" fill="#22c55e">R (P+Q)</text>
+                            </svg>
+                        </div>
+                    </div>
+                    <div>
+                        <span class="key-label block mb-2 text-center">ALGEBRA (대수학 코드)</span>
+                        <div class="math-box text-sm space-y-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-yellow-400 font-bold">Slope (\(\lambda\)):</span>
+                                <span>\(\lambda = \frac{y_2 - y_1}{x_2 - x_1} \pmod p\)</span>
+                            </div>
+                            <p class="text-xs text-slate-400 pl-4">👉 두 점 \(P, Q\)를 잇는 직선의 기울기를 구합니다.</p>
+                            <hr class="border-slate-600 my-2">
+                            <div class="space-y-1">
+                                <p>\(x_3 = \lambda^2 - x_1 - x_2 \pmod p\)</p>
+                                <p>\(y_3 = \lambda(x_1 - x_3) - y_1 \pmod p\)</p>
+                            </div>
+                            <p class="text-xs text-slate-400 pl-4">👉 <strong>교차점(\(I\))을 구하고 부호를 반전(\(-y\))</strong>시켜 \(R\)을 얻습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <details class="code-toggle">
+                <summary>Python Code: 점 덧셈 연산 (Point Addition)</summary>
+                <div class="code-content">
+<span class="code-keyword">from</span> ecdsa.ellipticcurve <span class="code-keyword">import</span> Point
+
+<span class="code-comment"># 2. 점 생성 (Affine Coordinates)</span>
+P = <span class="code-func">Point</span>(curve, 1, 1)
+Q = <span class="code-func">Point</span>(curve, 3, 2)
+
+<span class="code-comment"># 3. 점 덧셈 (The Action)</span>
+<span class="code-comment"># 위 그래프처럼 P와 Q를 잇는 선을 긋고 대칭(Flip)시켜 R을 찾습니다.</span>
+R = P + Q
+                </div>
+            </details>
+        </section>
+
+        <section class="page-section">
+            <div class="step-badge">Step 6. 규칙 반복으로 '잠금' 걸기</div>
+            <h2 class="section-title text-2xl text-orange-400 mb-2">6. 스칼라 곱셈: 트랩도어의 잠금 장치</h2>
+            <p class="step-desc">"단순히 많이 더하는 것(Naive)과 <strong>'지름길(Double-and-Add)'</strong>을 쓰는 것의 압도적인 차이를 확인하세요."</p>
+            
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 mb-6">
+                <div class="algo-comp">
+                    <div class="algo-box algo-naive">
+                        <div class="algo-header text-red-400">
+                            <span>🐢 Naive Addition (단순 덧셈)</span>
+                        </div>
+                        <div class="mb-4">
+                            <span class="text-slate-400 text-xs uppercase font-bold">Goal: 1000G</span>
+                            <p class="text-sm mt-1 text-slate-300">1부터 1,000까지 정직하게 더함.</p>
+                        </div>
+                        <div class="algo-step">
+                            <span>1G</span> <span class="step-arrow">→(+G)</span> 
+                            <span>2G</span> <span class="step-arrow">→(+G)</span> 
+                            <span>3G</span> <span class="step-arrow">...</span> 
+                            <span class="text-slate-500">(996 more)</span> 
+                            <span>1000G</span>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-red-900/30">
+                            <div class="flex justify-between text-xs text-red-300 font-bold">
+                                <span>Operations:</span>
+                                <span>1,000번 연산 (느림)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="algo-box algo-smart">
+                        <div class="algo-header text-green-400">
+                            <span>🐇 Double-and-Add (비트 선택)</span>
+                        </div>
+                        <div class="mb-4">
+                            <span class="text-slate-400 text-xs uppercase font-bold">Goal: 1000G (Binary 1111101000)</span>
+                            <p class="text-sm mt-1 text-slate-300">2배씩 키우며 <span class="text-yellow-400">비트가 1인 값</span>만 선택.</p>
+                        </div>
+                        <div class="algo-step">
+                            <span>G</span> <span class="step-arrow">→(x2)</span> 
+                            <span>2G</span> <span class="step-arrow">...</span> 
+                            <span class="step-highlight">8G(Add)</span> <span class="step-arrow">...</span> 
+                            <span class="step-highlight">512G(Add)</span>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-green-900/30">
+                            <div class="flex justify-between text-xs text-green-300 font-bold">
+                                <span>Operations:</span>
+                                <span>약 14번 연산 (70배 빠름!)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 bg-slate-900 border border-slate-700 rounded-lg p-6">
+                <h4 class="text-lg font-bold text-blue-400 mb-4">🎮 Simulator: Interactive Bit Map</h4>
+                <p class="text-sm text-slate-400 mb-6">아래 표의 <strong>행(Row)에 마우스를 올리면</strong>, 위쪽 비트 바(Bit Bar)에서 <strong>"어떤 자릿수 비트인지"</strong> 불이 켜집니다!</p>
+                
+                <div class="flex gap-4 mb-6">
+                    <input type="number" id="sim-scalar" class="sim-input" placeholder="Enter number (e.g., 100, 1000)" value="1000">
+                    <button onclick="runDoubleAddSim()" class="sim-btn">실행 (Run)</button>
+                </div>
+                
+                <div id="bit-visualizer" class="bit-container">
+                    </div>
+
+                <div class="sim-table-header">
+                    <div>Step</div>
+                    <div>Bit</div>
+                    <div>Action (Multiply by Bit)</div>
+                </div>
+                <div id="sim-output" class="sim-log custom-scrollbar">
+                    <div class="text-slate-500 italic text-center mt-12 p-4">숫자를 입력하고 실행 버튼을 누르세요.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="section-title text-2xl text-teal-400 mb-6">7. 보안 강도 비교 (Security Levels)</h2>
+            <div class="overflow-x-auto bg-slate-800 rounded-xl border border-slate-700">
+                <table class="w-full text-left text-slate-300">
+                    <thead class="bg-slate-700 text-white">
+                        <tr>
+                            <th class="p-4">Security Strength</th>
+                            <th class="p-4">ECC Key Size</th>
+                            <th class="p-4">RSA Key Size</th>
+                            <th class="p-4 text-yellow-400">Efficiency</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-600">
+                        <tr>
+                            <td class="p-4 text-blue-400 font-bold">80-bit</td>
+                            <td class="p-4">160 bits</td>
+                            <td class="p-4">1024 bits</td>
+                            <td class="p-4 text-slate-400">~6x</td>
+                        </tr>
+                        <tr>
+                            <td class="p-4 text-green-400 font-bold">112-bit</td>
+                            <td class="p-4">224 bits</td>
+                            <td class="p-4">2048 bits</td>
+                            <td class="p-4 text-slate-400">~9x</td>
+                        </tr>
+                        <tr class="bg-slate-700/50">
+                            <td class="p-4 text-orange-400 font-bold">128-bit</td>
+                            <td class="p-4 font-bold text-white">256 bits</td>
+                            <td class="p-4">3072 bits</td>
+                            <td class="p-4 text-yellow-400 font-bold">~12x</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="section-title text-2xl text-red-400 mb-6">8. 공격과 방어: 검증된 파라미터의 조건</h2>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 mb-6">
+                <p class="text-slate-300 leading-relaxed mb-4">
+                    ECC 알고리즘 자체는 안전하지만, 파라미터(\(a, b, p, n\))를 잘못 설정하면 수학적 꼼수(Attack)에 의해 무력화될 수 있습니다.
+                </p>
+                <div class="grid md:grid-cols-3 gap-4 mt-6">
+                    <div class="bg-slate-900 p-4 rounded border border-red-900/50">
+                        <div class="text-red-400 font-bold text-sm mb-1">1. Pollard's rho</div>
+                        <p class="text-xs text-slate-300 mt-2">\(n\)이 작으면 뚫림. <br>➜ 충분히 큰 소수 사용.</p>
+                    </div>
+                    <div class="bg-slate-900 p-4 rounded border border-blue-900/50">
+                        <div class="text-blue-400 font-bold text-sm mb-1">2. MOV Attack</div>
+                        <p class="text-xs text-slate-300 mt-2">특수 성질이 있으면 위험. <br>➜ 랜덤 곡선 사용.</p>
+                    </div>
+                    <div class="bg-slate-900 p-4 rounded border border-orange-900/50">
+                        <div class="text-orange-400 font-bold text-sm mb-1">3. Anomalous</div>
+                        <p class="text-xs text-slate-300 mt-2">\(p=n\)이면 즉시 해킹. <br>➜ \(p \neq n\) 보장.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="section-title text-2xl text-teal-400 mb-6">9. 검증 가능한 무작위성 (Verifiable Randomness)</h2>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 text-center">
+                <div class="flex flex-wrap items-center justify-center gap-4 text-sm font-bold text-slate-300 mb-6">
+                    <div class="bg-slate-700 px-4 py-2 rounded">Random Seed</div> 
+                    <div class="text-slate-500">➜</div> 
+                    <div class="bg-blue-900 px-4 py-2 rounded text-blue-300">SHA-1 (One-way)</div> 
+                    <div class="text-slate-500">➜</div> 
+                    <div class="bg-green-900 px-4 py-2 rounded text-green-300">Params a, b</div>
+                </div>
+                <div class="text-left bg-slate-900/50 p-4 rounded border-l-4 border-teal-500">
+                    <h4 class="text-teal-400 font-bold text-sm mb-1">왜 믿을 수 있나요? (Trust)</h4>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        SHA-1은 <strong>일방향 함수</strong>입니다. 누군가 악의적인 파라미터 \(a, b\)를 정해놓고, 그 값이 나오게 만드는 Seed를 역으로 찾아내는 것은 수학적으로 불가능합니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section border-none">
+            <h2 class="section-title text-2xl text-orange-400 mb-6">10. 결론: 디지털 시대의 수호자</h2>
+            <div class="grid md:grid-cols-3 gap-4 text-center">
+                <div class="concept-card"><div class="text-3xl mb-2">🏰</div><h3 class="font-bold text-white">견고함</h3><p class="text-sm text-slate-400 mt-2">강력한 보안성</p></div>
+                <div class="concept-card"><div class="text-3xl mb-2">📜</div><h3 class="font-bold text-white">표준</h3><p class="text-sm text-slate-400 mt-2">안전한 구현 가이드</p></div>
+                <div class="concept-card"><div class="text-3xl mb-2">🚀</div><h3 class="font-bold text-white">미래</h3><p class="text-sm text-slate-400 mt-2">차세대 핵심 엔진</p></div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- Real-time Geometry Engine (Math Perfect) ---
+        (function drawGeometry() {
+            const cx = 150, cy = 150, s = 40;
+            const toSvg = (x, y) => ({ x: cx + x * s, y: cy - y * s });
+
+            // 1. Draw Curve
+            let pathD = "";
+            for(let x = -1.91; x <= 4.0; x += 0.05) {
+                let val = Math.pow(x, 3) + 7;
+                if(val < 0) continue;
+                let y = Math.sqrt(val);
+                let pPos = toSvg(x, y);
+                pathD += (pathD === "" ? "M" : "L") + `${pPos.x.toFixed(1)} ${pPos.y.toFixed(1)} `;
+            }
+            let pathLower = "";
+            for(let x = -1.91; x <= 4.0; x += 0.05) {
+                let val = Math.pow(x, 3) + 7;
+                if(val < 0) continue;
+                let y = -Math.sqrt(val);
+                let p = toSvg(x, y);
+                pathLower += (pathLower === "" ? "M" : "L") + `${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+            }
+            document.getElementById('curve-path-el').setAttribute('d', pathD + pathLower);
+
+            // 2. Define Points
+            const xP = -1.4; const xQ = 0.8;
+            const yP = Math.sqrt(Math.pow(xP, 3) + 7);
+            const yQ = Math.sqrt(Math.pow(xQ, 3) + 7);
+            const slope = (yQ - yP) / (xQ - xP);
+            const xI = Math.pow(slope, 2) - xP - xQ;
+            const yI_line = slope * (xI - xP) + yP; 
+            const xR = xI; const yR = -yI_line;
+
+            const pP = toSvg(xP, yP); const pQ = toSvg(xQ, yQ);
+            const pI = toSvg(xI, yI_line); const pR = toSvg(xR, yR);
+
+            const setPt = (id, p) => {
+                const el = document.getElementById(id);
+                if(el) { el.setAttribute('cx', p.x); el.setAttribute('cy', p.y); }
+            };
+            const setLbl = (id, p, dx, dy) => {
+                const el = document.getElementById(id);
+                if(el) { el.setAttribute('x', p.x + dx); el.setAttribute('y', p.y + dy); }
+            };
+
+            setPt('pt-P', pP); setLbl('lbl-P', pP, -15, -10);
+            setPt('pt-Q', pQ); setLbl('lbl-Q', pQ, -10, -10);
+            setPt('pt-I', pI); setLbl('lbl-I', pI, 10, 0); 
+            setPt('pt-R', pR); setLbl('lbl-R', pR, 10, 5); 
+
+            const lnAdd = document.getElementById('ln-add');
+            if(lnAdd) {
+                lnAdd.setAttribute('x1', pP.x); lnAdd.setAttribute('y1', pP.y);
+                lnAdd.setAttribute('x2', pI.x); lnAdd.setAttribute('y2', pI.y);
+            }
+
+            const lnFlip = document.getElementById('ln-flip');
+            if(lnFlip) {
+                lnFlip.setAttribute('x1', pI.x); lnFlip.setAttribute('y1', pI.y);
+                lnFlip.setAttribute('x2', pR.x); lnFlip.setAttribute('y2', pR.y);
+            }
+        })();
+
+        // --- Improved Double-and-Add Simulator (Bit Selection & Interaction) ---
+        function runDoubleAddSim() {
+            const k = parseInt(document.getElementById('sim-scalar').value);
+            const out = document.getElementById('sim-output');
+            const bitVis = document.getElementById('bit-visualizer');
+            
+            out.innerHTML = '';
+            bitVis.innerHTML = '';
+            
+            if(!k || k < 1) { out.innerHTML = '<div class="text-red-400 text-center p-4">⚠️ Please enter a positive integer.</div>'; return; }
+            
+            const binary = k.toString(2);
+            const revBinary = binary.split('').reverse().join('');
+            
+            // 1. Generate Bit Visualizer Bar (Standard Order MSB -> LSB)
+            // But we render LSB at right, so flex-row-reverse handles visual order? 
+            // Better: Render bits from LSB (index 0) to MSB, and use flex-row-reverse container.
+            
+            let bitHtml = '';
+            for(let i=0; i<revBinary.length; i++) {
+                const bit = revBinary[i];
+                const activeClass = bit === '1' ? 'bit-on' : '';
+                const powerVal = Math.pow(2, i);
+                
+                bitHtml += `<div id="bit-box-${i}" class="bit-box ${activeClass}">
+                                <div class="bit-val">${bit}</div>
+                                <div class="bit-pow">${powerVal}</div>
+                            </div>`;
+            }
+            bitVis.innerHTML = bitHtml;
+
+            // 2. Generate Log Table
+            let html = ``;
+            let doubler = 1; 
+            let currentTotal = 0;
+            
+            for(let i=0; i<revBinary.length; i++) {
+                const bit = revBinary[i];
+                let actionText = '';
+                
+                if (bit === '1') {
+                    currentTotal += doubler;
+                    actionText = `<span class="op-result">1 × ${doubler}G ➜ Add</span>`;
+                } else {
+                    actionText = `<span class="op-ignore">0 × ${doubler}G ➜ Ignore</span>`;
+                }
+
+                // Add Row with Interaction Handlers
+                html += `<div class="sim-row" id="row-${i}" onmouseenter="highlightBit(${i})" onmouseleave="clearHighlight()">
+                            <div class="col-step">Step ${i}</div>
+                            <div class="col-bit"><span class="${bit === '1' ? 'tag-bit-1' : 'tag-bit-0'}">${bit}</span></div>
+                            <div class="col-add">${actionText}</div>
+                         </div>`;
+                
+                doubler *= 2; 
+            }
+            
+            html += `<div class="mt-4 p-3 bg-blue-900/30 border border-blue-500/50 rounded text-center">
+                        <div class="text-xs text-blue-300 uppercase font-bold tracking-wider">Final Calculation</div>
+                        <div class="text-xl font-bold text-white mt-1">Sum = ${currentTotal}G</div>
+                        <div class="text-xs text-slate-400 mt-2">Bitwise selection complete.</div>
+                     </div>`;
+            
+            out.innerHTML = html;
+        }
+
+        // --- Highlight Logic ---
+        function highlightBit(index) {
+            // Remove previous highlights
+            document.querySelectorAll('.bit-box').forEach(el => el.classList.remove('bit-active'));
+            document.querySelectorAll('.sim-row').forEach(el => el.classList.remove('active-row'));
+
+            // Add highlight to current
+            const bitEl = document.getElementById(`bit-box-${index}`);
+            const rowEl = document.getElementById(`row-${index}`);
+            
+            if(bitEl) bitEl.classList.add('bit-active');
+            if(rowEl) rowEl.classList.add('active-row');
+        }
+
+        function clearHighlight() {
+            document.querySelectorAll('.bit-box').forEach(el => el.classList.remove('bit-active'));
+            document.querySelectorAll('.sim-row').forEach(el => el.classList.remove('active-row'));
+        }
+    </script>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography & Provided PDF Analysis</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECC Key Generation - 실전 가이드</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* 추가 스타일 */
+        .byte-box { display: inline-block; border: 1px solid #475569; padding: 4px 8px; margin: 2px; font-family: monospace; border-radius: 4px; font-size: 0.85rem; }
+        .byte-prefix { background: #db2777; color: white; border-color: #db2777; font-weight: bold; }
+        .byte-data { background: #1e293b; color: #cbd5e1; }
+        
+        /* Code View Styles */
+        .code-toggle { background: #1e293b; border: 1px solid #334155; border-radius: 8px; margin-top: 1.5rem; overflow: hidden; }
+        .code-toggle summary { padding: 0.75rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: bold; color: #60a5fa; background: rgba(30, 41, 59, 0.5); display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
+        .code-toggle summary:hover { background: rgba(59, 130, 246, 0.1); }
+        .code-toggle summary::before { content: "💻"; }
+        .code-content { 
+            padding: 1rem; 
+            background: #0f172a; 
+            border-top: 1px solid #334155; 
+            font-family: 'Roboto Mono', monospace; 
+            font-size: 0.85rem; 
+            color: #cbd5e1; 
+            overflow-x: auto; 
+            line-height: 1.6;
+            white-space: pre; 
+        }
+        .code-keyword { color: #c084fc; }
+        .code-func { color: #60a5fa; }
+        .code-comment { color: #64748b; font-style: italic; }
+        .code-str { color: #facc15; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-5xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-green-500 font-bold tracking-wider text-sm uppercase">ECC Workshop</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                Key Generation<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">개인키 생성과 공개키 압축의 원리</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">SEC 1 표준에 따른 키 생성 절차와 데이터 포맷을 학습합니다.</p>
+        </header>
+
+        <section class="page-section mb-16 border-b border-dashed border-slate-700 pb-12">
+            <div class="inline-block bg-red-900/30 text-red-400 font-bold px-4 py-1 rounded-full text-sm mb-4 border border-red-500/30">Step 1. 개인키 (Private Key)</div>
+            <h2 class="text-3xl font-bold text-white mb-4">"본인 만이 아는 점프 횟수, \(d\)"</h2>
+            
+            <p class="text-slate-300 text-lg leading-relaxed mb-8 border-b border-slate-700/50 pb-6">
+                개인키 \(d\)는 거창한 암호가 아닙니다. 그저 <strong>특정 범위 안에서 무작위로 뽑은 점프 횟수(Integer)</strong>일 뿐입니다.<br>
+                <span class="text-sm text-slate-500 mt-2 block">단, 이 숫자를 남들이 절대 추측할 수 없어야 한다는 것이 유일한 조건입니다.</span>
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-8 items-start">
+                
+                <div class="flex flex-col gap-4">
+                    <div class="bg-slate-800 p-5 rounded-lg border-l-4 border-red-500 shadow-lg">
+                        <h4 class="font-bold text-red-400 mb-2 flex items-center gap-2">
+                            <span>⚠️</span> 핵심 조건: 범위(Range)
+                        </h4>
+                        <div class="bg-slate-900/50 p-2 rounded text-center font-mono text-slate-300 mb-2 border border-slate-700">
+                            \(1 \le d \le n-1\)
+                        </div>
+                        <p class="text-sm text-slate-400 leading-relaxed">
+                            여기서 \(n\)은 트랙의 <strong>전체 길이(Order)</strong>입니다.<br>
+                            트랙을 \(n\)바퀴 돌면 제자리로 돌아오기 때문에, \(n\)보다 큰 수는 의미가 없으며 보안상 취약할 수 있습니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 text-sm text-slate-400">
+                        <strong class="text-slate-300 block mb-1">🎲 RNG(난수 생성기)의 중요성</strong>
+                        만약 누군가 당신의 점프 횟수를 예측할 수 있다면(예: `random()` 함수 사용), 당신의 도착 위치(공개키)만 보고도 비밀을 알아낼 수 있습니다. 반드시 <code>OS CSPRNG</code>를 써야 합니다.
+                    </div>
+                </div>
+                
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg h-full">
+                    <div class="text-center mb-6 border-b border-slate-700 pb-4">
+                        <div class="text-5xl mb-2">🎰</div>
+                        <div class="text-slate-300 font-bold">Random Integer Generation</div>
+                        <div class="text-xs text-slate-500 mt-1">256-bit Big Integer</div>
+                    </div>
+                    
+                    <details class="code-toggle w-full" open>
+                        <summary>Python Code: 안전한 개인키 생성</summary>
+                        <div class="code-content">
+<span class="code-keyword">import</span> os
+<span class="code-keyword">from</span> ecdsa <span class="code-keyword">import</span> SigningKey, NIST256p
+
+<span class="code-comment"># 방법 1: 라이브러리 자동 생성 (권장)</span>
+<span class="code-comment"># 내부적으로 os.urandom()을 사용하여 안전한 난수를 뽑습니다.</span>
+sk = <span class="code-func">SigningKey.generate</span>(curve=NIST256p)
+
+<span class="code-comment"># 방법 2: 수동 생성 (원리 이해용)</span>
+<span class="code-comment"># 1. 256비트(32바이트) 난수 생성</span>
+random_bytes = os.urandom(32)
+<span class="code-comment"># 2. 정수로 변환</span>
+d_int = int.from_bytes(random_bytes, byteorder=<span class="code-str">'big'</span>)
+
+<span class="code-comment"># 3. 범위 체크 (1 <= d < n)</span>
+<span class="code-keyword">if</span> 1 <= d_int < NIST256p.order:
+    print(<span class="code-str">f"Valid Private Key: {d_int}"</span>)
+                        </div>
+                    </details>
+                </div>
+            </div>
+
+            <div class="mt-8 bg-slate-900/80 rounded-2xl border border-slate-700/50 p-8 flex flex-col items-center backdrop-blur-sm shadow-xl">
+                <h3 class="text-orange-400 font-bold mb-8 flex items-center gap-3 text-xl md:text-2xl">타원 곡선 그래프의 순환</h3>
+                
+                <div class="relative w-full max-w-3xl aspect-[4/3]">
+                    <svg viewBox="0 0 400 340" class="w-full h-full filter drop-shadow-2xl">
+                        <defs>
+                            <marker id="arrow-head-red-calc" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                                <path d="M0,0 L6,3 L0,6 L1.5,3 Z" fill="#f87171" />
+                            </marker>
+                            <marker id="arrow-head-gray-calc" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                                <path d="M0,0 L8,4 L0,8 L2,4 Z" fill="#64748b" />
+                            </marker>
+                            <pattern id="grid-calc" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#334155" stroke-width="0.5" opacity="0.3"/>
+                            </pattern>
+                            <filter id="glow-calc" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                            <linearGradient id="highlight-grad-calc" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#f87171" stop-opacity="0"/>
+                                <stop offset="50%" stop-color="#fbbf24" stop-opacity="1"/>
+                                <stop offset="100%" stop-color="#f87171" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+
+                        <rect x="20" y="20" width="360" height="300" fill="url(#grid-calc)" stroke="#475569" stroke-width="1.5" rx="12" />
+                        <g transform="translate(40, 50)">
+                            <rect x="-5" y="-12" width="60" height="16" rx="3" fill="#0f172a" stroke="#3b82f6" stroke-width="0.5"/>
+                            <text x="25" y="0" text-anchor="middle" fill="#3b82f6" font-size="8" font-weight="bold">Field Size (p)</text>
+                        </g>
+
+                        <path id="masterTrack" 
+                              d="M 50 260 C 130 50, 270 50, 350 260" 
+                              fill="none" stroke="#64748b" stroke-width="2" opacity="0.5" />
+                        
+                        <text x="200" y="230" text-anchor="middle" fill="#64748b" font-size="9" font-weight="bold" opacity="0.8">Curve Track (n)</text>
+
+                        <path d="M 350 270 A 180 60 0 0 1 50 270" 
+                              fill="none" stroke="#64748b" stroke-width="1.5" 
+                              stroke-dasharray="6,4" opacity="0.6"
+                              marker-end="url(#arrow-head-gray-calc)" />
+                        <text x="200" y="310" text-anchor="middle" fill="#64748b" font-size="8">Cycle (모듈러 순환)</text>
+
+
+                        <path d="M 50 260 C 130 50, 270 50, 350 260" 
+                              fill="none" stroke="#f87171" stroke-width="6" 
+                              stroke-linecap="round" opacity="0.15"
+                              stroke-dasharray="0 68 328 1000" /> 
+                        
+                        <path d="M 50 260 C 130 50, 270 50, 350 260" 
+                              fill="none" stroke="url(#highlight-grad-calc)" stroke-width="7" 
+                              stroke-linecap="round"
+                              filter="url(#glow-calc)"> 
+                            <animate attributeName="stroke-dasharray" 
+                                     values="0 68 0 1000; 0 68 328 1000; 0 68 328 1000" 
+                                     keyTimes="0; 0.6; 1"
+                                     dur="3s" 
+                                     repeatCount="indefinite" />
+                        </path>
+                        
+                        <g transform="translate(76, 203)">
+                            <circle r="6" fill="#22c55e" stroke="#ffffff" stroke-width="1.5" />
+                            <text y="20" text-anchor="middle" fill="#22c55e" font-size="10" font-weight="bold">Start (G)</text>
+                        </g>
+
+                        <g transform="translate(324, 203)">
+                            <circle r="8" fill="#3b82f6" stroke="#ffffff" stroke-width="2.5" class="filter drop-shadow-md"/>
+                            <text x="14" y="4" text-anchor="start" fill="#3b82f6" font-size="12" font-weight="bold">Q</text>
+                            <text x="14" y="18" text-anchor="start" fill="#93c5fd" font-size="8">Final Pos</text>
+                        </g>
+
+                        <g transform="translate(200, 160)">
+                            <rect x="-30" y="-15" width="60" height="30" rx="4" fill="#0f172a" stroke="#f87171" stroke-width="1" opacity="0.95"/>
+                            <text x="0" y="-2" text-anchor="middle" fill="#f87171" font-size="10" font-weight="bold">d 걸음</text>
+                            <text x="0" y="9" text-anchor="middle" fill="#fca5a5" font-size="7">(Private Key)</text>
+                        </g>
+                        <path d="M 200 145 L 200 125" stroke="#f87171" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arrow-head-red-calc)" />
+
+                    </svg>
+                </div>
+
+                <div class="w-full mt-8 bg-slate-800/80 p-5 rounded-xl border border-slate-700/50 text-base text-center shadow-inner">
+                    <span class="text-slate-300 leading-relaxed">
+                        방정식이 만든 <span class="text-slate-500 font-bold">곡선 트랙(n)</span>은 끝과 시작이 연결된 순환 고리입니다.<br>
+                        <span class="text-green-400 font-bold">G</span>에서 <span class="text-red-400 font-bold inline-flex items-center gap-1"><span class="animate-pulse">⚡</span>d 걸음</span>만큼 이동하여 <span class="text-blue-400 font-bold">Q</span>에 도착합니다.
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 w-full mt-4 text-center text-xs text-slate-400 bg-slate-800/50 p-3 rounded">
+                <div class="border-r border-slate-700">
+                    <strong class="text-blue-400 block mb-1 text-sm">🟦 Field \( p \) (무대)</strong>
+                    도착점 \( Q \)의 좌표 \((x, y)\)는<br>
+                    이 사각형(\(0 \sim p-1\))을 못 벗어남
+                </div>
+                <div>
+                    <strong class="text-slate-300 block mb-1 text-sm">⚪ Order \( n \) (궤도)</strong>
+                    이동 횟수(\(d\))는<br>
+                    이 원(\(n\))을 따라 순환함
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section mb-16 border-b border-dashed border-slate-700 pb-12">
+            <div class="inline-block bg-blue-900/30 text-blue-400 font-bold px-4 py-1 rounded-full text-sm mb-4 border border-blue-500/30">Step 2. 공개키 (Public Key)</div>
+            <h2 class="text-3xl font-bold text-white mb-6">"도착지에 꽂은 깃발, \(Q\)"</h2>
+
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div class="order-2 md:order-1">
+                    <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col items-center justify-center h-full">
+                        <div class="text-center space-y-4">
+                            <div class="bg-slate-900 px-6 py-3 rounded-lg border border-slate-600 font-mono text-green-400 text-lg">
+                                Q = d × G
+                            </div>
+                            <div class="text-3xl">⬇️</div>
+                            <div class="flex gap-4">
+                                <div class="bg-slate-700 px-4 py-2 rounded text-slate-300 font-mono">x: 7d2a...</div>
+                                <div class="bg-slate-700 px-4 py-2 rounded text-slate-300 font-mono">y: a4f1...</div>
+                            </div>
+                        </div>
+
+                        <details class="code-toggle w-full">
+                            <summary>Python Code: 공개키 계산</summary>
+                            <div class="code-content">
+<span class="code-comment"># sk(개인키) 객체에서 공개키 추출</span>
+vk = sk.verifying_key
+
+<span class="code-comment"># 수학적 원리: Q = d * G</span>
+<span class="code-comment"># 라이브러리 내부적으로 스칼라 곱셈이 수행됩니다.</span>
+<span class="code-comment"># vk.pubkey.point 는 (x, y) 좌표 객체입니다.</span>
+print(<span class="code-str">f"X: {vk.pubkey.point.x()}"</span>)
+print(<span class="code-str">f"Y: {vk.pubkey.point.y()}"</span>)
+                            </div>
+                        </details>
+                    </div>
+                </div>
+                <div class="order-1 md:order-2 space-y-4">
+                    <p class="text-slate-300 leading-relaxed">
+                        공개키 \(Q\)는 숫자가 아니라, <strong>타원 곡선 위의 한 점(Point)</strong>입니다. 즉, \((x, y)\) 좌표 쌍으로 이루어져 있습니다.
+                    </p>
+                    <ul class="list-disc list-inside text-slate-400 space-y-2 ml-2">
+                        <li><strong>생성 원리:</strong> 기준점 \(G\)를 개인키 \(d\)번 더한 결과입니다.</li>
+                        <li><strong>Trapdoor:</strong> \(Q\)를 남들에게 보여줘도, \(d\)를 역추산하는 것은 불가능(ECDLP)하므로 안전합니다.</li>
+                        <li><strong>검증:</strong> 생성된 \(Q\)가 실제로 곡선 방정식(\(y^2 = x^3+ax+b\)) 위에 있는지 반드시 확인해야 합니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section mb-16">
+            <div class="inline-block bg-purple-900/30 text-purple-400 font-bold px-4 py-1 rounded-full text-sm mb-4 border border-purple-500/30">Step 3. 키 압축 (Compression)</div>
+            <h2 class="text-3xl font-bold text-white mb-6">"효율성의 마법: 65 byte vs 33 byte"</h2>
+            
+            <p class="text-slate-300 mb-8 max-w-3xl leading-relaxed">
+                공개키는 타원 곡선 위의 점 \((x, y)\)입니다. 하지만 우리는 곡선의 방정식 <strong>\(y^2 = x^3 + ax + b\)</strong>를 이미 알고 있습니다.<br>
+                따라서 \(x\)값만 저장하면, 방정식을 풀어 \(y\)를 찾아낼 수 있습니다. 단, 제곱근의 특성상 <strong>두 개의 후보(양수/음수)</strong>가 생기므로, 이를 구분할 <strong>'홀짝 힌트'</strong>가 필요합니다.
+            </p>
+
+            <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden mb-8 shadow-lg">
+                <table class="w-full text-left text-slate-300">
+                    <thead class="bg-slate-700 text-white">
+                        <tr>
+                            <th class="p-4 w-1/5">Format</th>
+                            <th class="p-4 w-1/6">Prefix</th>
+                            <th class="p-4">Data Structure & Recovery Logic</th>
+                            <th class="p-4 w-1/6 text-center">Size (P-256)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-600">
+                        <tr class="hover:bg-slate-700/30 transition">
+                            <td class="p-4 align-top">
+                                <div class="font-bold text-orange-400 mb-1">Uncompressed</div>
+                                <span class="text-xs text-slate-500">비압축 (Legacy)</span>
+                            </td>
+                            <td class="p-4 align-top"><span class="byte-box byte-prefix">04</span></td>
+                            <td class="p-4">
+                                <div class="flex gap-1 mb-2">
+                                    <span class="byte-box byte-data w-1/2 text-center border-orange-500/30 text-orange-200">X Coordinate</span>
+                                    <span class="byte-box byte-data w-1/2 text-center border-orange-500/30 text-orange-200">Y Coordinate</span>
+                                </div>
+                                <p class="text-xs text-slate-400">
+                                    ❌ <strong>비효율적:</strong> 이미 계산 가능한 \(y\)값까지 통째로 저장하여 용량을 낭비합니다.
+                                </p>
+                            </td>
+                            <td class="p-4 font-mono text-slate-400 text-center align-top">65 bytes</td>
+                        </tr>
+                        
+                        <tr class="bg-slate-700/20 hover:bg-slate-700/30 transition">
+                            <td class="p-4 align-top">
+                                <div class="font-bold text-green-400 mb-1">Compressed</div>
+                                <span class="text-xs text-slate-500">압축 (Standard)</span>
+                            </td>
+                            <td class="p-4 align-top">
+                                <div class="flex flex-col gap-2">
+                                    <span class="text-xs text-slate-400">If calculated \(y\) is:</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="byte-box byte-prefix">02</span> <span class="text-xs font-bold text-blue-300">Even (짝)</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="byte-box byte-prefix">03</span> <span class="text-xs font-bold text-red-300">Odd (홀)</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4">
+                                <div class="flex gap-1 mb-3">
+                                    <span class="byte-box byte-data w-full text-center border-green-500/50 text-green-100 font-bold">X Coordinate Only</span>
+                                </div>
+                                
+                                <div class="bg-slate-900/60 p-3 rounded border border-slate-600 text-xs space-y-2">
+                                    <div class="font-bold text-slate-300 mb-1">🔄 복구 알고리즘 (Recovery):</div>
+                                    <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                                        <li><strong>대입:</strong> 저장된 \(x\)를 식 \(x^3 + ax + b\)에 넣고 계산 (= \(y^2\))</li>
+                                        <li><strong>제곱근:</strong> \(y^2\)의 제곱근을 구하면 두 개의 해가 도출됨 <br>
+                                            <span class="pl-4 block mt-1 text-slate-500">👉 후보 1: \(y\) (양수 개념) / 후보 2: \(p-y\) (음수 개념)</span>
+                                        </li>
+                                        <li><strong>선택:</strong> Prefix가 <span class="byte-box px-1 py-0 text-[10px]">02</span>면 <strong>짝수</strong>인 해, <span class="byte-box px-1 py-0 text-[10px]">03</span>이면 <strong>홀수</strong>인 해를 선택</li>
+                                    </ol>
+                                </div>
+                            </td>
+                            <td class="p-4 font-mono text-green-400 font-bold text-center align-top text-lg">33 bytes<br><span class="text-xs font-normal text-slate-500">(-50%)</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bg-blue-900/20 border-l-4 border-blue-500 p-5 rounded-r-lg">
+                <h4 class="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                    💡 왜 해(Root)는 항상 '짝수'와 '홀수'로 나뉠까?
+                </h4>
+                <div class="text-sm text-slate-300 space-y-2">
+                    <p>
+                        유한체에서 음수 \(-y\)는 <strong>\(p - y\)</strong>로 표현됩니다. 
+                        이때 경기장의 크기인 소수 <strong>\(p\)는 항상 홀수</strong>입니다.
+                    </p>
+                    <div class="bg-slate-900 p-2 rounded text-center font-mono text-xs md:text-sm text-slate-400">
+                        \(y\) + \((p - y)\) = \(p\) <span class="text-yellow-400">(항상 홀수!)</span>
+                    </div>
+                    <p>
+                        두 수를 더해서 홀수가 되려면, <strong>하나는 짝수이고 다른 하나는 반드시 홀수</strong>여야 합니다.<br>
+                        이 수학적 필연성 덕분에 우리는 \(y\)값 전체를 저장하는 대신, <strong>"짝수냐 홀수냐"</strong>라는 1비트의 정보만으로 진짜 \(y\)를 찾아낼 수 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <details class="code-toggle">
+                <summary>Python Code: 압축 및 비압축 변환</summary>
+                <div class="code-content">
+<span class="code-comment"># 1. 비압축 포맷 (Uncompressed) - 65 bytes</span>
+<span class="code-comment"># Prefix '04' + X(32bytes) + Y(32bytes)</span>
+uncompressed_key = vk.to_string(<span class="code-str">"uncompressed"</span>)
+print(<span class="code-str">f"Uncompressed Hex: {uncompressed_key.hex()}"</span>)
+
+<span class="code-comment"># 2. 압축 포맷 (Compressed) - 33 bytes</span>
+<span class="code-comment"># Prefix '02' (if y is even) or '03' (if y is odd) + X(32bytes)</span>
+compressed_key = vk.to_string(<span class="code-str">"compressed"</span>)
+print(<span class="code-str">f"Compressed Hex:   {compressed_key.hex()}"</span>)
+
+<span class="code-comment"># 3. 복구 (Loading)</span>
+<span class="code-comment"># 라이브러리가 x를 식에 대입하고, Prefix(02/03)를 보고 y를 결정합니다.</span>
+vk_loaded = VerifyingKey.from_string(compressed_key, curve=NIST256p)
+                </div>
+            </details>
+
+        </section>
+
+        <section class="summary-box">
+            <h3 class="text-indigo-400 font-bold mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M10.97 4.97a.235.235 0 0 0-.02.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05z"/></svg>
+                Key Generation 핵심 요약
+            </h3>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div>
+                    <div class="text-white font-bold mb-1">1. Private Key (d)</div>
+                    <p class="text-sm text-slate-400"><strong>점프 횟수</strong>입니다. 트랙 길이(\(n\)) 안에서 랜덤하게 뽑은 나만의 비밀 숫자입니다.</p>
+                </div>
+                <div>
+                    <div class="text-white font-bold mb-1">2. Public Key (Q)</div>
+                    <p class="text-sm text-slate-400"><strong>도착한 위치</strong>입니다. \(Q = d \times G\)로 계산된 좌표이며, 되돌릴 수 없습니다.</p>
+                </div>
+                <div>
+                    <div class="text-white font-bold mb-1">3. Compression</div>
+                    <p class="text-sm text-slate-400">\(x\)좌표와 \(y\)의 홀짝 정보(Prefix)만 저장하여 <strong>용량을 절반으로 줄입니다.</strong></p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

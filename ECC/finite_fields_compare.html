@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>유한체 심화: AES vs ECC 비교</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Table & Layout Styles */
+        .comparison-table th, .comparison-table td { padding: 1rem; border-bottom: 1px solid #334155; }
+        .comparison-table th { background-color: #1e293b; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; }
+        .comparison-table tr:last-child td { border-bottom: none; }
+        
+        .aes-marker { color: #38bdf8; font-family: 'Roboto Mono', monospace; }
+        .ecc-marker { color: #fb923c; font-weight: bold; }
+        .vs-badge { background: #0f172a; border: 1px solid #475569; color: #cbd5e1; padding: 4px 12px; border-radius: 9999px; font-size: 0.8rem; font-weight: bold; }
+
+        /* Diagram Styles */
+        .diagram-container { position: relative; background: #0f172a; border-radius: 20px; padding: 30px; border: 1px solid #334155; margin-bottom: 40px; overflow: hidden; }
+        .bridge-header { text-align: center; margin-bottom: 30px; position: relative; }
+        .bridge-title { background: #1e293b; border: 2px solid #94a3b8; color: #e2e8f0; padding: 10px 30px; border-radius: 9999px; font-weight: bold; display: inline-block; position: relative; z-index: 10; }
+        .bridge-line { position: absolute; top: 50%; left: 10%; right: 10%; height: 2px; background: linear-gradient(90deg, #38bdf8 0%, #94a3b8 50%, #fb923c 100%); z-index: 1; }
+        
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 20px; align-items: stretch; }
+        .divider-line { background: repeating-linear-gradient(to bottom, #334155, #334155 10px, transparent 10px, transparent 20px); }
+        
+        .col-header { text-align: center; padding: 15px; border-radius: 12px; font-weight: bold; margin-bottom: 20px; color: white; }
+        .aes-header { background: linear-gradient(135deg, #0284c7, #0ea5e9); box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3); }
+        .ecc-header { background: linear-gradient(135deg, #ea580c, #f97316); box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3); }
+        
+        .visual-box { background: rgba(30, 41, 59, 0.5); border: 1px dashed #475569; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .binary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+        .bit { width: 24px; height: 24px; background: #0f172a; border: 1px solid #38bdf8; color: #38bdf8; display: flex; justify-content: center; align-items: center; font-size: 0.7rem; font-family: monospace; border-radius: 4px; }
+        
+        .prime-p { font-size: 3rem; font-weight: 900; color: #fdba74; font-family: serif; position: relative; }
+        .floating-num { position: absolute; font-size: 0.8rem; color: #9ca3af; font-family: sans-serif; }
+        .mod-circle { width: 50px; height: 50px; border: 3px solid #f97316; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #f97316; }
+        .flow-arrow { font-size: 1.5rem; color: #64748b; margin: 10px 0; }
+
+        @media (max-width: 768px) {
+            .comparison-grid { grid-template-columns: 1fr; }
+            .divider-line { display: none; }
+        }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="javascript:history.back()" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+        </svg>
+        Go Back
+    </a>
+
+    <div class="max-w-6xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-12">
+            <span class="vs-badge mb-4 inline-block">Supplementary Concept</span>
+            <h1 class="text-3xl md:text-4xl font-black text-slate-100 mb-4">
+                유한체 비교 분석: <span class="text-blue-400">AES</span> vs <span class="text-orange-400">ECC</span>
+            </h1>
+            <p class="text-slate-400 text-lg max-w-2xl mx-auto">
+                같은 '유한체(Finite Field)' 가문이지만, <strong>종류</strong>와 <strong>연산 방식</strong>이 다릅니다.<br>
+                왜 ECC에서는 XOR 대신 덧셈을 사용하는지 알아봅니다.
+            </p>
+        </header>
+
+        <section class="diagram-container">
+            <div class="bridge-header">
+                <div class="bridge-line"></div>
+                <div class="bridge-title">유한체 (Finite Field)</div>
+            </div>
+
+            <div class="comparison-grid">
+                <div>
+                    <div class="col-header aes-header">AES: 비트의 세계 (GF(2⁸))</div>
+                    
+                    <div class="mb-6">
+                        <div class="visual-box">
+                            <div class="binary-grid mb-2">
+                                <div class="bit">0</div><div class="bit">1</div><div class="bit">0</div><div class="bit">0</div>
+                                <div class="bit">1</div><div class="bit">0</div><div class="bit">1</div><div class="bit">1</div>
+                            </div>
+                            <h3 class="text-blue-400 font-bold mb-1">이진 확장체</h3>
+                            <p class="text-xs text-slate-400">Binary Extension Field</p>
+                            <p class="text-xs text-slate-500 mt-2">1바이트(8비트) 데이터를 다루기 위해 설계됨</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow text-center">⬇</div>
+
+                    <div class="mb-6">
+                        <div class="visual-box">
+                            <h3 class="text-blue-400 font-bold mb-3">덧셈 연산 = XOR</h3>
+                            <div class="xor-operation bg-slate-900 p-4 rounded mb-2 text-sm font-mono inline-block text-right">
+                                <div class="tracking-[0.3em]">0 1 0 1</div>
+                                <div class="tracking-[0.3em] relative">
+                                    <span class="absolute -left-5 text-white">⊕</span>
+                                    1 1 0 0
+                                </div>
+                                <div class="w-full h-px bg-slate-600 my-2"></div>
+                                <div class="tracking-[0.3em] text-orange-400">1 0 0 1</div>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">비트 간 논리 연산(XOR) 사용</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow text-center">⬇</div>
+
+                    <div>
+                        <div class="visual-box">
+                            <h3 class="text-blue-400 font-bold mb-2">목적: 데이터 뒤섞기</h3>
+                            <svg width="60" height="60" viewBox="0 0 60 60" class="mb-2">
+                                <rect x="5" y="5" width="50" height="50" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+                                <path d="M10 10 L50 50 M50 10 L10 50" stroke="#38bdf8" stroke-width="1" opacity="0.5"/>
+                                <rect x="20" y="20" width="20" height="20" fill="#38bdf8" opacity="0.2"/>
+                            </svg>
+                            <p class="text-xs text-slate-400">Mixing (S-Box)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divider-line"></div>
+
+                <div>
+                    <div class="col-header ecc-header">ECC: 거대한 숫자의 세계 (GF(p))</div>
+
+                    <div class="mb-6">
+                        <div class="visual-box">
+                            <div class="prime-p mb-2">
+                                P
+                                <span class="floating-num" style="top:0; left: -10px;">14</span>
+                                <span class="floating-num" style="bottom:0; right: -10px;">27</span>
+                                <span class="floating-num" style="top:10px; right: -20px;">3</span>
+                            </div>
+                            <h3 class="text-orange-400 font-bold mb-1">소수체</h3>
+                            <p class="text-xs text-slate-400">Prime Field</p>
+                            <p class="text-xs text-slate-500 mt-2">거대한 소수(p)를 기준으로 하는 정수들의 집합</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow text-center">⬇</div>
+
+                    <div class="mb-6">
+                        <div class="visual-box">
+                            <h3 class="text-orange-400 font-bold mb-3">덧셈 연산 = 일반 덧셈 (mod p)</h3>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-lg font-mono">A + B = </span>
+                                <div class="mod-circle">% p</div>
+                                <span class="text-lg font-mono">→ R</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-2">일반 덧셈 후 소수 p로 나눈 나머지 사용</p>
+                        </div>
+                    </div>
+
+                    <div class="flow-arrow text-center">⬇</div>
+
+                    <div>
+                        <div class="visual-box">
+                            <h3 class="text-orange-400 font-bold mb-2">목적: 좌표 계산</h3>
+                            <svg width="60" height="60" viewBox="0 0 60 60" class="mb-2">
+                                <line x1="5" y1="30" x2="55" y2="30" stroke="#475569" stroke-width="1"/>
+                                <line x1="30" y1="5" x2="30" y2="55" stroke="#475569" stroke-width="1"/>
+                                <path d="M 15 20 Q 30 50 45 20" fill="none" stroke="#f97316" stroke-width="2"/>
+                                <path d="M 15 40 Q 30 10 45 40" fill="none" stroke="#f97316" stroke-width="2"/>
+                                <circle cx="15" cy="20" r="2" fill="#fff"/>
+                                <circle cx="45" cy="40" r="2" fill="#fff"/>
+                            </svg>
+                            <p class="text-xs text-slate-400">Coordinate Calculation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden mb-12">
+            <div class="p-4 bg-slate-700 font-bold text-slate-200 border-b border-slate-600">
+                상세 비교표 (Summary Table)
+            </div>
+            <table class="w-full text-left comparison-table">
+                <thead>
+                    <tr>
+                        <th class="w-1/4">구분 (Feature)</th>
+                        <th class="w-1/3 text-blue-400">AES (대칭키)</th>
+                        <th class="w-1/3 text-orange-400">ECC (공개키)</th>
+                    </tr>
+                </thead>
+                <tbody class="text-slate-300">
+                    <tr>
+                        <td><strong>수학적 분류</strong></td>
+                        <td>이진 확장체 (Binary Extension)<br><span class="aes-marker">\(GF(2^8)\)</span></td>
+                        <td>소수체 (Prime Field)<br><span class="ecc-marker">\(GF(p)\)</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>데이터의 본질</strong></td>
+                        <td><span class="text-slate-400 text-sm">다항식 (Polynomial)</span><br>비트의 나열 (0 또는 1)</td>
+                        <td><span class="text-slate-400 text-sm">정수 (Integer)</span><br>0부터 \(p-1\)까지의 큰 숫자</td>
+                    </tr>
+                    <tr>
+                        <td><strong>덧셈 연산 (+)</strong></td>
+                        <td><span class="aes-marker font-bold">XOR (\(\oplus\))</span><br>(올림수 없는 덧셈)</td>
+                        <td><span class="ecc-marker font-bold">일반 덧셈 \(\pmod p\)</span><br>(우리가 아는 그 더하기)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>사용 목적</strong></td>
+                        <td>바이트 단위 데이터 뒤섞기<br>(S-Box, MixColumns)</td>
+                        <td>타원 곡선 위에서<br>정밀한 좌표 계산</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="grid md:grid-cols-2 gap-8 mb-12">
+            <div class="ecc-panel border-t-4 border-t-blue-500 bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2 bg-blue-900/50 rounded-lg text-2xl">🤖</div>
+                    <h2 class="text-xl font-bold text-blue-400">AES: 비트의 세계</h2>
+                </div>
+                <div class="bg-slate-900 p-5 rounded-lg border border-slate-700 mb-4 font-mono text-sm text-center">
+                    <p class="text-slate-500 mb-2">Element Example</p>
+                    <div class="text-xl text-blue-300 tracking-widest mb-2">10110010</div>
+                    <div class="text-xs text-slate-500">\(x^7 + x^5 + x^4 + x\)</div>
+                </div>
+                <ul class="space-y-3 text-slate-300 text-sm">
+                    <li class="flex items-start gap-2"><span class="text-blue-500 font-bold">1.</span> 이진 확장체 \(GF(2^n)\): 모든 숫자를 다항식으로 취급.</li>
+                    <li class="flex items-start gap-2"><span class="text-blue-500 font-bold">2.</span> 덧셈은 XOR: 올림수 없이 비트 반전.</li>
+                </ul>
+            </div>
+
+            <div class="ecc-panel border-t-4 border-t-orange-500 bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="p-2 bg-orange-900/50 rounded-lg text-2xl">🧮</div>
+                    <h2 class="text-xl font-bold text-orange-400">ECC: 거대 정수의 세계</h2>
+                </div>
+                <div class="bg-slate-900 p-5 rounded-lg border border-slate-700 mb-4 font-mono text-sm text-center">
+                    <p class="text-slate-500 mb-2">Element Example</p>
+                    <div class="text-lg text-orange-300 break-all leading-tight">115792089237316...</div>
+                    <div class="text-xs text-slate-500 mt-1">\(0 \le x < p\)</div>
+                </div>
+                <ul class="space-y-3 text-slate-300 text-sm">
+                    <li class="flex items-start gap-2"><span class="text-orange-500 font-bold">1.</span> 소수체 \(GF(p)\): 큰 소수를 울타리로 하는 정수 집합.</li>
+                    <li class="flex items-start gap-2"><span class="text-orange-500 font-bold">2.</span> 일반 덧셈 (Mod P): 더하고 나눠서 나머지를 취함.</li>
+                </ul>
+            </div>
+        </div>
+
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-center text-slate-100 mb-8">
+                핵심 질문: <span class="text-teal-400">결과의 유일성</span>과 <span class="text-indigo-400">모듈러 연산</span>
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 relative overflow-hidden">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="bg-teal-900/50 text-teal-400 font-bold px-3 py-1 rounded text-sm">Q1</span>
+                        <h3 class="text-xl font-bold text-slate-100">결과값은 하나만 존재하나요?</h3>
+                    </div>
+                    
+                    <div class="my-6 flex justify-center">
+                        <svg width="240" height="120" viewBox="0 0 240 120">
+                            <rect x="20" y="40" width="40" height="40" rx="8" fill="#0f172a" stroke="#2dd4bf" stroke-width="2"/>
+                            <text x="40" y="65" text-anchor="middle" fill="#2dd4bf" font-family="monospace" font-weight="bold">In</text>
+                            
+                            <line x1="60" y1="60" x2="90" y2="60" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            
+                            <rect x="90" y="30" width="60" height="60" rx="8" fill="#134e4a" stroke="#2dd4bf" stroke-width="2"/>
+                            <text x="120" y="65" text-anchor="middle" fill="#ccfbf1" font-weight="bold">f(x)</text>
+                            
+                            <line x1="150" y1="60" x2="180" y2="60" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowhead)"/>
+                            
+                            <rect x="180" y="40" width="40" height="40" rx="8" fill="#0f172a" stroke="#2dd4bf" stroke-width="2"/>
+                            <text x="200" y="65" text-anchor="middle" fill="#2dd4bf" font-family="monospace" font-weight="bold">Out</text>
+
+                            <defs>
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+
+                    <p class="text-slate-300 mb-4 font-bold text-center">
+                        네, <span class="text-blue-400">AES</span>와 <span class="text-orange-400">ECC</span> 모두 결과는 유일합니다.
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-400">
+                        <li class="flex gap-2">
+                            <span class="text-teal-500">🤝</span>
+                            <span><strong>공통점:</strong> 결정론적(Deterministic)이어야 암호로 동작합니다. 입력이 같으면 출력은 항상 같습니다.</span>
+                        </li>
+                        <li class="flex gap-2 items-start">
+                            <span class="text-teal-500">⚡</span>
+                            <div>
+                                <strong>차이점 (방향성):</strong><br>
+                                • <span class="text-blue-400">AES:</span> <strong>양방향</strong> (키가 있으면 복호화 쉬움)<br>
+                                • <span class="text-orange-400">ECC:</span> <strong>단방향</strong> (Trapdoor, 역추적 불가능)
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 relative overflow-hidden">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="bg-indigo-900/50 text-indigo-400 font-bold px-3 py-1 rounded text-sm">Q2</span>
+                        <h3 class="text-xl font-bold text-slate-100">왜 유한체(모듈러)를 쓰나요?</h3>
+                    </div>
+
+                    <div class="my-6 flex justify-center items-center gap-6">
+                        <div class="text-center">
+                            <svg width="80" height="80" viewBox="0 0 100 100">
+                                <path d="M 50,10 A 40,40 0 1,1 49.9,10" fill="none" stroke="#818cf8" stroke-width="4" stroke-dasharray="10,5"/>
+                                <polygon points="50 5, 60 15, 40 15" fill="#818cf8" transform="rotate(90 50 15)"/>
+                                <text x="50" y="55" text-anchor="middle" fill="#c7d2fe" font-weight="bold" font-size="12">Cycle</text>
+                            </svg>
+                            <p class="text-xs text-indigo-300 mt-1">순환 구조</p>
+                        </div>
+                        <div class="text-slate-500">+</div>
+                        <div class="text-center">
+                            <svg width="80" height="80" viewBox="0 0 100 100" class="bg-slate-900 rounded-lg border border-slate-700">
+                                <circle cx="20" cy="30" r="3" fill="#f472b6"/>
+                                <circle cx="50" cy="80" r="3" fill="#f472b6"/>
+                                <circle cx="80" cy="40" r="3" fill="#f472b6"/>
+                                <circle cx="30" cy="60" r="3" fill="#f472b6"/>
+                                <circle cx="70" cy="20" r="3" fill="#f472b6"/>
+                            </svg>
+                            <p class="text-xs text-indigo-300 mt-1">혼돈(Scatter)</p>
+                        </div>
+                    </div>
+
+                    <p class="text-slate-300 mb-4 font-bold text-center">
+                        <span class="text-indigo-400">컴퓨터 한계 극복</span> 및 <span class="text-indigo-400">보안성</span> 확보입니다.
+                    </p>
+                    <ul class="space-y-3 text-sm text-slate-400">
+                        <li class="flex gap-2 items-start">
+                            <span class="text-indigo-500">💾</span>
+                            <div>
+                                <strong>컴퓨터 한계 (무한대 방지):</strong><br>
+                                • <span class="text-blue-400">AES:</span> 1바이트(\(GF(2^8)\)) 안에 가둠<br>
+                                • <span class="text-orange-400">ECC:</span> 256비트(\(GF(p)\)) 정수 안에 가둠
+                            </div>
+                        </li>
+                        <li class="flex gap-2 items-start">
+                            <span class="text-indigo-500">🛡️</span>
+                            <div>
+                                <strong>보안성 (혼돈):</strong><br>
+                                • <span class="text-blue-400">AES:</span> 비트를 섞어 원본 은폐 (Confusion)<br>
+                                • <span class="text-orange-400">ECC:</span> 점을 흩뿌려 경로 은폐 (Scattering)
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
+        <footer class="custom-footer dark-footer-style">
+            <div class="footer-inner">
+                <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Supplementary Study.</p>
+                <div class="signature-box">
+                    <span class="sig-label">Created by</span>
+                    <span class="sig-name">EunChang</span>
+                    <a href="mailto:focus81@teia.co.kr" class="email-link">
+                        <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    </a>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+</body>
+</html>

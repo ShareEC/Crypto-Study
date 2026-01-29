@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECDH Key Agreement - 완벽 가이드</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Base Styles */
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'sans-serif'; }
+        .page-section { border-bottom: 1px dashed #334155; padding-bottom: 4rem; margin-bottom: 4rem; }
+        .page-section:last-child { border-bottom: none; }
+        
+        /* Logic & Analogy Styles */
+        .math-concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .logic-card { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; }
+        .math-eq { font-family: 'Roboto Mono', monospace; font-size: 1.1rem; text-align: center; background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; border: 1px dashed #334155; }
+        
+        .analogy-box { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 2rem; }
+        .paint-pot { width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem; color: rgba(0,0,0,0.7); margin: 0 auto; text-align: center; line-height: 1.1; }
+
+        .hacker-zone { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px dashed #475569; position: relative; }
+        .hacker-badge { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #ef4444; border: 1px solid #ef4444; padding: 2px 12px; font-size: 0.75rem; font-weight: bold; border-radius: 99px; text-transform: uppercase; }
+
+        /* Simulator Styles */
+        .sim-grid { display: grid; grid-template-columns: 1fr 0.1fr 1fr; gap: 1rem; align-items: stretch; margin-top: 1rem; }
+        .party-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; position: relative; }
+        .party-alice { border-top: 4px solid #3b82f6; }
+        .party-bob { border-top: 4px solid #22c55e; }
+        
+        .role-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold; margin-bottom: 1rem; display: block; }
+        .text-alice { color: #60a5fa; }
+        .text-bob { color: #4ade80; }
+
+        .key-input { background: #0f172a; border: 1px solid #475569; color: white; padding: 0.5rem; width: 100%; text-align: center; border-radius: 4px; font-family: 'Roboto Mono', monospace; }
+        .math-display { font-family: 'Roboto Mono', monospace; font-size: 0.9rem; margin-top: 0.5rem; color: #cbd5e1; }
+        
+        .btn-run { background: #2563eb; color: white; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; margin-top: 1.5rem; transition: background 0.2s; }
+        .btn-run:hover { background: #1d4ed8; }
+
+        /* Graph Styles */
+        .graph-container { background: #0f172a; border: 1px solid #475569; border-radius: 12px; height: 400px; position: relative; overflow: hidden; margin-top: 2rem; }
+        .axis { stroke: #334155; stroke-width: 1; }
+        .curve-path { fill: none; stroke: #3b82f6; stroke-width: 3; }
+        .point { r: 6; stroke: #fff; stroke-width: 2; transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
+        .pt-alice { fill: #3b82f6; } .pt-bob { fill: #22c55e; } .pt-secret { fill: #facc15; r: 8; stroke-width: 3; }
+        .label-text { font-size: 12px; font-weight: bold; fill: #e2e8f0; text-shadow: 0 2px 4px black; }
+        .sec-note { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 1rem; margin-top: 1rem; font-size: 0.9rem; color: #fca5a5; }
+
+        /* Use Case Flow Styles */
+        .use-case-box { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+        .use-case-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px dashed #475569; padding-bottom: 1rem; }
+        .use-icon { font-size: 2rem; background: #0f172a; padding: 10px; border-radius: 12px; border: 1px solid #334155; }
+        .use-title { font-size: 1.2rem; font-weight: bold; color: #e2e8f0; }
+        .use-desc { font-size: 0.9rem; color: #94a3b8; }
+        
+        .flow-container { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 1.5rem; border-radius: 8px; position: relative; overflow-x: auto; gap: 1rem; }
+        .flow-step { flex: 1; text-align: center; position: relative; min-width: 100px; }
+        .flow-arrow { color: #64748b; font-size: 1.5rem; font-weight: bold; }
+        .step-start { border: 2px solid #facc15; background: rgba(250, 204, 21, 0.1); border-radius: 8px; padding: 10px; }
+        .step-start::before { content: "START HERE"; position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; color: #facc15; font-weight: bold; background: #0f172a; padding: 0 4px; }
+        .step-label { color: #94a3b8; display: block; margin-bottom: 6px; font-size: 0.75rem; uppercase; font-weight: bold; }
+        .step-val { font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #fff; font-weight: bold; }
+        .step-result { color: #4ade80; font-weight: bold; font-family: 'Roboto Mono', monospace; font-size: 0.9rem; }
+        .step-action { color: #60a5fa; font-size: 0.8rem; margin-top: 4px; display: block; }
+
+        .code-block { background: #0f172a; padding: 1.5rem; border-radius: 8px; border: 1px solid #334155; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #cbd5e1; overflow-x: auto; line-height: 1.6; }
+        .kw { color: #c084fc; } .fn { color: #60a5fa; } .str { color: #facc15; } .cmt { color: #64748b; font-style: italic; }
+
+        /* Step 6: Summary Styles */
+        .summary-timeline { display: flex; flex-direction: column; gap: 1rem; border-left: 3px solid #3b82f6; padding-left: 1.5rem; margin-left: 1rem; }
+        .summary-item { position: relative; }
+        .summary-item::before { content: ''; position: absolute; left: -1.95rem; top: 6px; width: 14px; height: 14px; border-radius: 50%; background: #0f172a; border: 3px solid #3b82f6; }
+        .summary-title { font-weight: bold; color: #e2e8f0; font-size: 1.1rem; margin-bottom: 0.3rem; }
+        .summary-desc { color: #94a3b8; font-size: 0.95rem; line-height: 1.5; }
+        .highlight { color: #facc15; font-weight: bold; }
+
+        /* ★ Bug Fix: Email Icon Size ★ */
+        .email-icon { width: 20px; height: 20px; color: #94a3b8; transition: color 0.2s; }
+        .email-icon:hover { color: #fff; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-5xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-green-500 font-bold tracking-wider text-sm uppercase">Secure Communication</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                ECDH Key Agreement<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">공개된 채널에서 비밀 공유하기</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">
+                Elliptic Curve Diffie-Hellman: 타원곡선의 수학적 대칭성을 이용하여 안전하게 키를 교환합니다.
+            </p>
+        </header>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-blue-500">1.</span> 기본 원리: 수학적 대칭성 (The Math)
+            </h2>
+            <p class="text-slate-400 text-sm mb-6">
+                앞서 배운 <strong>공개키 공식(\(Q=dG\))</strong>을 기억하시나요? ECDH는 이 공식을 서로 교차해서 곱하면 <strong>결국 같은 식</strong>이 된다는 점을 이용합니다.
+            </p>
+
+            <div class="math-concept-grid">
+                <div class="logic-card">
+                    <div class="logic-title text-blue-400">🔵 Alice의 계산</div>
+                    <p class="text-xs text-slate-400 mb-2">내 비밀키(\(d_A\))에 Bob의 공개키(\(Q_B\))를 곱합니다.</p>
+                    <div class="math-eq text-blue-300">
+                        \( S = d_A \times \mathbf{Q_B} \)<br>
+                        \( = d_A \times (\mathbf{d_B \times G}) \)
+                    </div>
+                </div>
+                <div class="logic-card">
+                    <div class="logic-title text-green-400">🟢 Bob의 계산</div>
+                    <p class="text-xs text-slate-400 mb-2">내 비밀키(\(d_B\))에 Alice의 공개키(\(Q_A\))를 곱합니다.</p>
+                    <div class="math-eq text-green-300">
+                        \( S = d_B \times \mathbf{Q_A} \)<br>
+                        \( = d_B \times (\mathbf{d_A \times G}) \)
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-center">
+                <span class="text-yellow-400 font-bold block mb-1">🔑 결론 (Conclusion)</span>
+                <span class="text-slate-200">
+                    순서는 다르지만 결과는 같습니다: <strong>\( S = (d_A \times d_B) \times G \)</strong>
+                </span>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-green-500">2.</span> 쉬운 비유: 물감 섞기 (Analogy)
+            </h2>
+            <div class="analogy-box">
+                <p class="text-slate-300 mb-6 text-sm text-center">
+                    수학이 어렵다면 <strong>"색깔"</strong>로 생각해보세요. <br>
+                    <strong>섞는 건 쉽지만(Easy), 분리하는 건 불가능(Hard)</strong>합니다.
+                </p>
+                <div class="grid grid-cols-3 gap-4 text-center items-end text-xs font-bold mb-4">
+                    <div>
+                        <span class="text-blue-400 block mb-2">Alice</span>
+                        <div class="paint-pot mb-2" style="background:#3b82f6;">Secret<br>Color</div>
+                        <span class="text-slate-500">➕ Public Base</span>
+                        <div class="text-xl text-slate-500 my-1">⬇</div>
+                        <div class="paint-pot" style="background:#60a5fa;">Public<br>Mix A</div>
+                    </div>
+                    <div class="flex flex-col justify-center h-full pb-8">
+                        <span class="text-slate-500 uppercase tracking-widest mb-2">Exchange</span>
+                        <div class="text-3xl text-white">⇄</div>
+                    </div>
+                    <div>
+                        <span class="text-green-400 block mb-2">Bob</span>
+                        <div class="paint-pot mb-2" style="background:#22c55e;">Secret<br>Color</div>
+                        <span class="text-slate-500">➕ Public Base</span>
+                        <div class="text-xl text-slate-500 my-1">⬇</div>
+                        <div class="paint-pot" style="background:#4ade80;">Public<br>Mix B</div>
+                    </div>
+                </div>
+                
+                <div class="text-center pb-4 border-b border-dashed border-slate-600">
+                    <span class="text-slate-400 block mb-2">✅ 각자의 비밀색을 상대방의 믹스에 섞으면?</span>
+                    <div class="paint-pot" style="background:#d97706; border-color:#fcd34d; width: 80px; height: 80px;">Shared<br>Secret</div>
+                    <p class="text-yellow-400 text-xs mt-2 font-bold">똑같은 갈색이 완성됩니다!</p>
+                </div>
+
+                <div class="hacker-zone">
+                    <span class="hacker-badge">⚠️ Attacker's View (해커의 시점)</span>
+                    <div class="flex justify-center items-center gap-6 mt-4">
+                        <div class="flex flex-col items-center opacity-70">
+                            <div class="paint-pot" style="background:#60a5fa; scale:0.9;">Public<br>Mix A</div>
+                            <span class="text-xs text-slate-500 mt-1">훔친 물감 A</span>
+                        </div>
+                        <div class="text-2xl text-slate-500 font-bold">+</div>
+                        <div class="flex flex-col items-center opacity-70">
+                            <div class="paint-pot" style="background:#4ade80; scale:0.9;">Public<br>Mix B</div>
+                            <span class="text-xs text-slate-500 mt-1">훔친 물감 B</span>
+                        </div>
+                        <div class="text-2xl text-slate-500 font-bold">➜</div>
+                        <div class="flex flex-col items-center">
+                            <div class="paint-pot" style="background:#57534e; border-color:#ef4444; width: 70px; height: 70px;">Dirty<br>Mud</div>
+                            <span class="text-red-400 text-xs font-bold mt-2">FAILED!</span>
+                        </div>
+                    </div>
+                    <p class="text-center text-slate-400 text-xs mt-3 max-w-lg mx-auto leading-relaxed">
+                        해커는 공개된 물감은 가졌지만, <strong>순수한 비밀 색상(개인키)</strong>이 없어서 섞으면 엉뚱한 색(Mud)이 나옵니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-yellow-500">3.</span> 실전 시뮬레이션 (Simulation)
+            </h2>
+            
+            <div class="sim-grid">
+                <div class="party-card party-alice">
+                    <span class="role-label text-alice">Alice</span>
+                    <div class="input-group">
+                        <label class="text-xs text-slate-400 block mb-1">나의 비밀키 (Private \(d_A\))</label>
+                        <input type="number" id="priv-a" class="key-input" value="2" min="1" max="10">
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <div class="text-xs text-slate-400">공개키 생성 (Send)</div>
+                        <div class="math-display text-blue-300">\(Q_A = d_A \times G\)</div>
+                        <div class="text-xs text-slate-400 mt-2">최종 비밀키 (Result)</div>
+                        <div class="math-display text-yellow-400">\(S = d_A \times Q_B\)</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-center">
+                    <div class="h-full w-px bg-slate-700"></div>
+                </div>
+
+                <div class="party-card party-bob">
+                    <span class="role-label text-bob">Bob</span>
+                    <div class="input-group">
+                        <label class="text-xs text-slate-400 block mb-1">나의 비밀키 (Private \(d_B\))</label>
+                        <input type="number" id="priv-b" class="key-input" value="3" min="1" max="10">
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-700">
+                        <div class="text-xs text-slate-400">공개키 생성 (Send)</div>
+                        <div class="math-display text-green-300">\(Q_B = d_B \times G\)</div>
+                        <div class="text-xs text-slate-400 mt-2">최종 비밀키 (Result)</div>
+                        <div class="math-display text-yellow-400">\(S = d_B \times Q_A\)</div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="runSimulation()" class="btn-run">🔄 키 교환 실행 및 검증</button>
+
+            <div class="sec-note">
+                <strong class="block text-red-400 mb-1">🤔 Q. 해커가 공개키(\(Q_A, Q_B\))를 곱하면 안 되나요?</strong>
+                <p class="text-slate-300 leading-relaxed">
+                    <strong>불가능합니다.</strong> ECC 수학에서 점(Point)끼리의 곱셈은 정의되지 않습니다.<br>
+                    비밀키를 만들려면 반드시 <strong>'스칼라(정수 d)'</strong>가 하나 포함되어야 하는데, 해커에게는 이 스칼라가 없습니다.
+                </p>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-purple-500">4.</span> 그래프 검증 (Visual Proof)
+            </h2>
+            <div class="graph-container">
+                <svg width="100%" height="100%" viewBox="0 0 600 400" id="ecdh-graph">
+                    <defs>
+                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#334155" stroke-width="0.5" opacity="0.3"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                    <line x1="20" y1="200" x2="580" y2="200" class="axis" /> 
+                    <line x1="300" y1="20" x2="300" y2="380" class="axis" /> 
+                    <path id="curve-path" class="curve-path" />
+                    <g id="points-group"></g>
+                </svg>
+
+                <div class="absolute bottom-4 left-4 bg-slate-900/90 p-3 rounded border border-slate-700 backdrop-blur-sm">
+                    <div class="text-xs font-bold text-slate-500 mb-2">LEGEND</div>
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span class="text-xs text-blue-300">Alice Public (\(Q_A\))</span></div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-xs text-green-300">Bob Public (\(Q_B\))</span></div>
+                        <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-yellow-400 border border-white"></span><span class="text-xs text-yellow-300 font-bold">Shared Secret (\(S\))</span></div>
+                    </div>
+                </div>
+                
+                <div class="absolute top-4 right-4 text-right">
+                    <div id="status-msg" class="text-sm font-mono text-slate-400">Waiting for start...</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section border-none">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-teal-400">5.</span> 실전 활용: 모든 것의 시작
+            </h2>
+            <p class="text-slate-400 text-sm mb-6">
+                웹(HTTPS), 메신저, VPN... 사용하는 곳은 다르지만,<br>
+                <strong>"모든 보안 연결은 공개키 교환(\(Q_A \leftrightarrow Q_B\))에서 시작한다"</strong>는 점은 똑같습니다.
+            </p>
+
+            <div class="use-case-box">
+                <div class="use-case-header">
+                    <div class="use-icon">🔒</div>
+                    <div>
+                        <div class="use-title">1. HTTPS (Web Security)</div>
+                        <div class="use-desc">브라우저와 서버가 처음 접속할 때 (TLS Handshake)</div>
+                    </div>
+                </div>
+                <div class="flow-container">
+                    <div class="flow-step step-start">
+                        <span class="step-label">Step 1 (Common)</span>
+                        <div class="step-val">Exchange \(Q_{Client}, Q_{Server}\)</div>
+                    </div>
+                    <span class="flow-arrow">➜</span>
+                    <div class="flow-step">
+                        <span class="step-label">Step 2 (Derive)</span>
+                        <div class="step-result">Session Key</div>
+                    </div>
+                    <span class="flow-arrow">➜</span>
+                    <div class="flow-step">
+                        <span class="step-label">Step 3 (Action)</span>
+                        <span class="step-action">Encrypt HTTP Data</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="use-case-box">
+                <div class="use-case-header">
+                    <div class="use-icon">💬</div>
+                    <div>
+                        <div class="use-title">2. Secure Chat (E2EE)</div>
+                        <div class="use-desc">카카오톡/텔레그램 비밀채팅 (서버도 내용 모름)</div>
+                    </div>
+                </div>
+                <div class="flow-container">
+                    <div class="flow-step step-start">
+                        <span class="step-label">Step 1 (Common)</span>
+                        <div class="step-val">Exchange \(Q_{Alice}, Q_{Bob}\)</div>
+                    </div>
+                    <span class="flow-arrow">➜</span>
+                    <div class="flow-step">
+                        <span class="step-label">Step 2 (Derive)</span>
+                        <div class="step-result">Message Key</div>
+                    </div>
+                    <span class="flow-arrow">➜</span>
+                    <div class="flow-step">
+                        <span class="step-label">Step 3 (Action)</span>
+                        <span class="step-action">Encrypt Text "Hello"</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="use-case-box">
+                <div class="use-case-header">
+                    <div class="use-icon">📡</div>
+                    <div>
+                        <div class="use-title">3. VPN / SSH Tunnel</div>
+                        <div class="use-desc">재택근무 시 사내망 접속 (Tunneling)</div>
+                    </div>
+                </div>
+                <div class="flow-container">
+                    <div class="flow-step step-start">
+                        <span class="step-label">Step 1 (Common)</span>
+                        <div class="step-val">Exchange \(Q_{Init}, Q_{Resp}\)</div>
+                    </div>
+                    <span class="flow-arrow">➜</span>
+                    <div class="flow-step">
+                        <span class="step-label">Step 2 (Derive)</span>
+                        <div class="step-result">Tunnel Key</div>
+                    </div>
+                    <span class="flow-arrow">➜</span>
+                    <div class="flow-step">
+                        <span class="step-label">Step 3 (Action)</span>
+                        <span class="step-action">Build Secure Tunnel</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-lg p-1 border border-slate-700 mt-8">
+                <div class="bg-slate-900 px-4 py-2 border-b border-slate-700 text-xs text-slate-400 font-bold">
+                    🐍 Python Implementation (Using 'cryptography' library)
+                </div>
+                <div class="code-block">
+<span class="kw">from</span> cryptography.hazmat.primitives.asymmetric <span class="kw">import</span> ec
+
+<span class="cmt"># 1. Start: Exchange Public Keys (Q)</span>
+priv_a = ec.<span class="fn">generate_private_key</span>(ec.SECP256R1())
+pub_a = priv_a.<span class="fn">public_key</span>()
+
+priv_b = ec.<span class="fn">generate_private_key</span>(ec.SECP256R1())
+pub_b = priv_b.<span class="fn">public_key</span>()
+
+<span class="cmt"># 2. Derive: Calculate Shared Secret (S)</span>
+shared_a = priv_a.<span class="fn">exchange</span>(ec.ECDH(), pub_b)
+shared_b = priv_b.<span class="fn">exchange</span>(ec.ECDH(), pub_a)
+
+<span class="kw">assert</span> shared_a == shared_b  <span class="cmt"># True! The magic works.</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section border-none">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-yellow-500">6.</span> 핵심 요약 (Summary)
+            </h2>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <p class="text-slate-300 mb-6 font-light">
+                    지금까지 배운 ECDH의 전체 흐름을 한 장의 타임라인으로 정리합니다.
+                </p>
+                <div class="summary-timeline">
+                    <div class="summary-item">
+                        <div class="summary-title">🌐 1. 공개된 장소 (Insecure Channel)</div>
+                        <p class="summary-desc">누구나 엿들을 수 있는 인터넷(Web)이나 채팅 서버에서 시작합니다.</p>
+                    </div>
+                    <div class="summary-item mt-6">
+                        <div class="summary-title">⇄ 2. 공개키 교환 (ECDH)</div>
+                        <p class="summary-desc">서로의 <span class="highlight">공개키(\(Q_A, Q_B\))</span>를 과감하게 던져줍니다. (해커가 가져가도 상관없습니다)</p>
+                    </div>
+                    <div class="summary-item mt-6">
+                        <div class="summary-title">🔑 3. 비밀키 생성 (Shared Secret)</div>
+                        <p class="summary-desc">각자 자신의 비밀키로 계산하여 <span class="highlight">똑같은 비밀값(\(S\))</span>을 만들어냅니다.</p>
+                    </div>
+                    <div class="summary-item mt-6">
+                        <div class="summary-title">🔒 4. 암호화 통신 (Encryption)</div>
+                        <p class="summary-desc">이제 \(S\)를 이용해 메시지를 잠그고(Encrypt) 풉니다(Decrypt). <br>
+                        <span class="text-sm text-blue-400 mt-1 block">👉 이 과정이 바로 다음 장에서 배울 ECIES의 핵심입니다.</span></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        (function() {
+            const svg = document.getElementById('ecdh-graph');
+            const pathEl = document.getElementById('curve-path');
+            const group = document.getElementById('points-group');
+            const statusMsg = document.getElementById('status-msg');
+
+            const cx = 300, cy = 200, s = 25; 
+            const toSvg = (x, y) => ({ x: cx + x * s, y: cy - y * s });
+            const getY = (x) => Math.sqrt(Math.pow(x, 3) + 7);
+
+            function drawCurve() {
+                let dTop = "", dBot = "";
+                for(let x = -1.91; x <= 12.0; x += 0.1) {
+                    let y = getY(x); let p = toSvg(x, y);
+                    dTop += (dTop ? "L" : "M") + `${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+                }
+                for(let x = -1.91; x <= 12.0; x += 0.1) {
+                    let y = -getY(x); let p = toSvg(x, y);
+                    dBot += (dBot ? "L" : "M") + `${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+                }
+                pathEl.setAttribute('d', dTop + " " + dBot);
+            }
+            drawCurve();
+
+            const a = 0; 
+            const G = { x: -1.0, y: 2.449 }; 
+
+            function pointAdd(p1, p2) {
+                let m;
+                if (Math.abs(p1.x - p2.x) < 0.001 && Math.abs(p1.y - p2.y) < 0.001) {
+                    m = (3 * p1.x * p1.x + a) / (2 * p1.y);
+                } else {
+                    if (Math.abs(p1.x - p2.x) < 0.001) return null; 
+                    m = (p2.y - p1.y) / (p2.x - p1.x);
+                }
+                const x3 = m * m - p1.x - p2.x;
+                const y3 = m * (p1.x - x3) - p1.y;
+                return { x: x3, y: y3 };
+            }
+
+            function scalarMult(k, P) {
+                let current = { x: P.x, y: P.y };
+                for(let i=1; i<k; i++) {
+                    let next = pointAdd(current, P);
+                    if(next) current = next;
+                }
+                return current;
+            }
+
+            window.runSimulation = function() {
+                group.innerHTML = ``; 
+                const dA = parseInt(document.getElementById('priv-a').value);
+                const dB = parseInt(document.getElementById('priv-b').value);
+
+                const QA = scalarMult(dA, G);
+                const QB = scalarMult(dB, G);
+                const S = scalarMult(dA * dB, G); 
+
+                const pG = toSvg(G.x, G.y);
+                group.innerHTML += `<circle cx="${pG.x}" cy="${pG.y}" r="4" fill="#94a3b8" />
+                                    <text x="${pG.x+10}" y="${pG.y}" class="label-text" fill="#94a3b8">G</text>`;
+                statusMsg.innerText = "1. Base Point G defined.";
+
+                setTimeout(() => {
+                    const pQA = toSvg(QA.x, QA.y);
+                    group.innerHTML += `<circle cx="${pQA.x}" cy="${pQA.y}" class="point pt-alice" />
+                                        <text x="${pQA.x+10}" y="${pQA.y-10}" class="label-text" fill="#3b82f6">Q_A</text>`;
+                    statusMsg.innerText = `2. Alice generates Q_A (${dA}G)`;
+                }, 800);
+
+                setTimeout(() => {
+                    const pQB = toSvg(QB.x, QB.y);
+                    group.innerHTML += `<circle cx="${pQB.x}" cy="${pQB.y}" class="point pt-bob" />
+                                        <text x="${pQB.x+10}" y="${pQB.y+20}" class="label-text" fill="#22c55e">Q_B</text>`;
+                    statusMsg.innerText = `3. Bob generates Q_B (${dB}G)`;
+                }, 1600);
+
+                setTimeout(() => {
+                    const pS = toSvg(S.x, S.y);
+                    group.innerHTML += `<circle cx="${pS.x}" cy="${pS.y}" class="point pt-secret" />
+                                        <text x="${pS.x+15}" y="${pS.y}" class="label-text" fill="#facc15" style="font-size:14px">Secret S</text>`;
+                    statusMsg.innerText = `4. Key Agreed! S = ${dA*dB}G`;
+                    statusMsg.classList.add('text-yellow-400');
+                }, 2400);
+            }
+        })();
+    </script>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECC Pros & Cons - 장단점과 취약점 분석</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Card Styles */
+        .grid-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; transition: transform 0.2s; }
+        .grid-card:hover { transform: translateY(-5px); border-color: #64748b; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
+        
+        /* Pros (Green Theme) */
+        .card-pro { border-top: 4px solid #22c55e; }
+        .icon-pro { background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 8px; border-radius: 8px; display: inline-block; margin-bottom: 1rem; }
+
+        /* Cons (Orange Theme) */
+        .card-con { border-top: 4px solid #f97316; }
+        .icon-con { background: rgba(249, 115, 22, 0.2); color: #fb923c; padding: 8px; border-radius: 8px; display: inline-block; margin-bottom: 1rem; }
+
+        /* Vuln (Red Theme) - Interactive */
+        .vuln-box { 
+            background: rgba(239, 68, 68, 0.05); 
+            border: 1px solid rgba(239, 68, 68, 0.3); 
+            border-radius: 8px; 
+            padding: 1.5rem; 
+            margin-bottom: 1rem; 
+            position: relative; 
+            overflow: hidden; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+        }
+        .vuln-box:hover { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
+        
+        .vuln-title { color: #f87171; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .vuln-desc { color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; }
+        .vuln-tag { position: absolute; top: 0; right: 0; background: #ef4444; color: white; font-size: 0.7rem; font-weight: bold; padding: 4px 8px; border-bottom-left-radius: 8px; }
+
+        /* Hidden Details */
+        .vuln-detail { display: none; margin-top: 1.5rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1rem; font-size: 0.85rem; color: #94a3b8; animation: slideDown 0.3s ease-out; }
+        .vuln-detail.show { display: block; }
+        
+        .case-study { background: #0f172a; padding: 1rem; border-radius: 6px; border-left: 3px solid #ef4444; margin: 1rem 0; }
+        .math-snippet { font-family: 'Roboto Mono', monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #e2e8f0; }
+
+        /* Comparison Bar */
+        .bar-container { background: #334155; height: 24px; border-radius: 12px; overflow: hidden; margin-top: 0.5rem; position: relative; }
+        .bar-fill { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: white; transition: width 1s ease-out; }
+        .bar-rsa { background: #64748b; width: 100%; }
+        .bar-ecc { background: #22c55e; width: 10%; position: absolute; top: 0; left: 0; height: 100%; z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.5); }
+        .bar-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
+        
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+
+    <script>
+        function toggleVuln(id) {
+            const detail = document.getElementById(id);
+            const icon = document.getElementById('icon-' + id);
+            
+            if (detail.classList.contains('show')) {
+                detail.classList.remove('show');
+                icon.innerHTML = '▼';
+            } else {
+                detail.classList.add('show');
+                icon.innerHTML = '▲';
+            }
+        }
+    </script>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-6xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-teal-500 font-bold tracking-wider text-sm uppercase">ECC Evaluation</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                Pros, Cons & Vulnerabilities<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">왜 ECC를 쓰며, 무엇을 조심해야 하는가?</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">
+                완벽한 암호 알고리즘은 없습니다. ECC의 강력한 장점과 피할 수 없는 단점, 그리고 잠재적 위협을 분석합니다.
+            </p>
+        </header>
+
+        <section class="page-section mb-16">
+            <h2 class="text-2xl font-bold text-white mb-8 flex items-center gap-2">
+                <span class="text-green-500">#1.</span> Pros: 압도적인 효율성 (Why ECC?)
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="grid-card card-pro">
+                    <div class="icon-pro text-2xl">🔑</div>
+                    <h3 class="text-lg font-bold text-white mb-2">Key Size (크기)</h3>
+                    <p class="text-sm text-slate-400">
+                        RSA-3072비트와 맞먹는 보안 강도를 ECC는 단 <strong>256비트</strong>로 달성합니다. 키가 작아 전송 속도가 빠르고 저장 공간을 적게 차지합니다.
+                    </p>
+                </div>
+                <div class="grid-card card-pro">
+                    <div class="icon-pro text-2xl">⚡</div>
+                    <h3 class="text-lg font-bold text-white mb-2">Performance (성능)</h3>
+                    <p class="text-sm text-slate-400">
+                        키 생성 및 서명 속도가 RSA보다 월등히 빠릅니다. CPU 파워가 약한 <strong>모바일 기기나 IoT 환경</strong>에서 배터리를 절약하는 데 필수적입니다.
+                    </p>
+                </div>
+                <div class="grid-card card-pro">
+                    <div class="icon-pro text-2xl">📉</div>
+                    <h3 class="text-lg font-bold text-white mb-2">Bandwidth (대역폭)</h3>
+                    <p class="text-sm text-slate-400">
+                        데이터 패킷 크기가 작아 네트워크 부하를 줄여줍니다. 트래픽 비용이 비싼 블록체인이나 위성 통신에 최적화되어 있습니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <h4 class="text-white font-bold mb-4 text-center">Visual Comparison: 128-bit Security Level</h4>
+                
+                <div class="mb-6">
+                    <div class="bar-label"><span>RSA Key Length</span> <span>3072 bits</span></div>
+                    <div class="bar-container">
+                        <div class="bar-rsa flex items-center justify-end pr-2 text-xs text-slate-300">Legacy Standard</div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="bar-label"><span>ECC Key Length</span> <span>256 bits</span></div>
+                    <div class="bar-container bg-slate-700">
+                        <div class="bar-ecc flex items-center justify-center text-xs text-black">🚀</div>
+                        <div style="position:absolute; left: 12%; color: #4ade80; font-size: 0.8rem; top: 2px;">👈 12배 더 작음!</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section mb-16">
+            <h2 class="text-2xl font-bold text-white mb-8 flex items-center gap-2">
+                <span class="text-orange-500">#2.</span> Cons: 구현의 복잡성 (Trade-offs)
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="grid-card card-con">
+                    <div class="icon-con text-2xl">🤯</div>
+                    <h3 class="text-lg font-bold text-white mb-2">Complexity (복잡성)</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        RSA는 "소수 두 개 곱하기"로 설명되지만, ECC는 <strong>유한체, 점 덧셈, 사영 좌표계</strong> 등 수학적 배경이 훨씬 난해합니다.<br>
+                        이로 인해 개발자가 직접 구현하다가 실수할 확률(Human Error)이 높습니다.
+                    </p>
+                </div>
+                <div class="grid-card card-con">
+                    <div class="icon-con text-2xl">🐢</div>
+                    <h3 class="text-lg font-bold text-white mb-2">Verification Speed (검증 속도)</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        ECC는 키 생성과 서명은 빠르지만, <strong>서명 검증(Verification)</strong> 속도는 RSA보다 다소 느릴 수 있습니다. (RSA 검증은 작은 지수 \(e=65537\)을 써서 매우 빠름)
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-8 flex items-center gap-2">
+                <span class="text-red-500">#3.</span> Vulnerabilities: 치명적 위협 요소
+            </h2>
+            <p class="text-slate-300 mb-6">
+                👇 박스를 <strong>클릭</strong>하여 실제 해킹 사례와 구체적인 수학적 원리를 확인하세요.
+            </p>
+
+            <div class="vuln-box" onclick="toggleVuln('detail-rng')">
+                <div class="vuln-tag">Critical</div>
+                <div class="vuln-title">
+                    <span>🎲 Weak RNG (난수 재사용의 비극)</span>
+                    <span id="icon-detail-rng" class="text-sm text-slate-500">▼</span>
+                </div>
+                <p class="vuln-desc">
+                    ECDSA 서명 과정에서 쓰이는 임시 난수 \(k\)가 <strong>단 한 번이라도 재사용</strong>되거나 예측 가능하면, 개인키가 즉시 수학적으로 노출됩니다.
+                </p>
+                
+                <div id="detail-rng" class="vuln-detail">
+                    <strong class="text-red-400 block mb-2">☠️ 수학적 원리 (The Math)</strong>
+                    <p class="mb-4">
+                        두 개의 다른 메시지 \(m_1, m_2\)에 대해 같은 난수 \(k\)를 사용하여 서명 \((r, s_1), (r, s_2)\)를 만들었다고 가정합시다.<br>
+                        이 경우, 다음과 같은 간단한 초등 수학으로 개인키 \(d\)가 도출됩니다:
+                    </p>
+                    <div class="bg-slate-900 p-3 rounded mb-4 text-center">
+                        \( k = \frac{z_1 - z_2}{s_1 - s_2} \pmod n \) <br>
+                        \( \Downarrow \) <br>
+                        \( d = \frac{s_1 k - z_1}{r} \pmod n \) <span class="text-red-500 font-bold"> (개인키 노출!)</span>
+                    </div>
+
+                    <div class="case-study">
+                        <strong class="text-white block mb-1">📉 실제 사례: Sony PS3 Hack (2010)</strong>
+                        <p>
+                            소니 엔지니어들은 ECDSA 서명 구현 시, 난수 \(k\)를 매번 바꿔야 한다는 규칙을 무시하고 <strong>정적인 고정값(Static Value)</strong>을 사용했습니다.
+                            해커 그룹 'fail0verflow'는 단 두 개의 게임 서명만 비교하여 <strong>PS3의 마스터 서명키(Root Key)</strong>를 추출했고, 
+                            전 세계 누구나 불법 복제 게임을 구동할 수 있게 되었습니다.
+                        </p>
+                    </div>
+
+                    <strong class="text-green-400 block mb-2">🛡️ 대응책: RFC 6979 (Deterministic ECDSA)</strong>
+                    <p>
+                        "인간이 난수를 관리하게 하지 마라."<br>
+                        난수 생성기(RNG)에 의존하는 대신, <strong>메시지 해시값과 개인키를 섞어 해싱</strong>한 결과(\(HMAC\))를 \(k\)로 사용합니다.
+                        이렇게 하면 \(k\)는 매번 다르면서도, 외부 난수 생성기의 품질에 영향을 받지 않아 안전합니다.
+                    </p>
+                </div>
+            </div>
+
+            <div class="vuln-box" onclick="toggleVuln('detail-side')" style="border-color: rgba(251, 146, 60, 0.3); background: rgba(251, 146, 60, 0.05);">
+                <div class="vuln-tag" style="background: #f97316;">High</div>
+                <div class="vuln-title" style="color: #fb923c;">
+                    <span>⏱️ Side-Channel Attacks (부채널 공격)</span>
+                    <span id="icon-detail-side" class="text-sm text-slate-500">▼</span>
+                </div>
+                <p class="vuln-desc">
+                    알고리즘의 수학적 결함이 아니라, 연산을 수행하는 <strong>물리적 하드웨어의 특성(전력, 시간, 소리)</strong>을 분석해 키를 훔치는 방법입니다.
+                </p>
+                
+                <div id="detail-side" class="vuln-detail">
+                    <p class="mb-3">
+                        ECC의 스칼라 곱셈(Double-and-Add) 알고리즘은 비트가 1일 때와 0일 때 수행하는 연산량이 다릅니다.<br>
+                        이 미세한 <strong>전력 소모량 차이</strong>나 <strong>연산 시간 차이</strong>를 오실로스코프로 측정하면 비밀키 비트를 0과 1로 복원할 수 있습니다.
+                    </p>
+                    <strong class="text-green-400 block mb-1">🛡️ 대응책</strong>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li><strong>Constant-time Code:</strong> 입력값에 상관없이 항상 똑같은 시간이 걸리도록 코드를 작성합니다.</li>
+                        <li><strong>Edwards Curve (Ed25519):</strong> 수학적으로 모든 점에 대해 동일한 연산 공식을 사용하여 부채널 공격을 원천 봉쇄합니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="vuln-box" onclick="toggleVuln('detail-quant')" style="border-color: rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.05);">
+                <div class="vuln-tag" style="background: #a855f7;">Future Threat</div>
+                <div class="vuln-title" style="color: #c084fc;">
+                    <span>⚛️ Shor's Algorithm (양자 컴퓨터)</span>
+                    <span id="icon-detail-quant" class="text-sm text-slate-500">▼</span>
+                </div>
+                <p class="vuln-desc">
+                    ECDLP(이산 대수 문제)는 기존 컴퓨터로는 풀 수 없지만, 양자 컴퓨터의 <strong>'쇼어 알고리즘'</strong>을 이용하면 순식간에 풀립니다.
+                </p>
+                <div id="detail-quant" class="vuln-detail">
+                    <p class="mb-3">
+                        양자 컴퓨터 큐비트(Qubit)가 약 2,000~4,000개 수준으로 안정화되면, 현재의 256비트 ECC 키는 <strong>수 시간 내에 해독</strong>될 것으로 예상됩니다. (현재는 실험실 수준)
+                    </p>
+                    <strong class="text-green-400 block mb-1">🛡️ 대응책: PQC (Post-Quantum Cryptography)</strong>
+                    <p>
+                        양자 컴퓨터로도 풀기 어려운 <strong>격자(Lattice) 기반 암호</strong>나 <strong>해시 기반 서명</strong> 등으로 표준을 이동하고 있습니다. (예: NIST의 CRYSTALS-Kyber/Dilithium)
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

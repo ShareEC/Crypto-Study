@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECC Domain Parameters - 완벽 분석</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Base Styles */
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'sans-serif'; }
+        .page-section { border-bottom: 1px dashed #334155; padding-bottom: 4rem; margin-bottom: 4rem; position: relative; }
+        .page-section:last-child { border-bottom: none; }
+
+        .param-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+        
+        .spec-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; transition: all 0.3s ease; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .spec-card:hover { transform: translateY(-3px); border-color: #64748b; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
+        .spec-icon { font-size: 1.5rem; margin-bottom: 0.5rem; display: inline-block; padding: 8px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; }
+        
+        /* Color Classes */
+        .card-p { border-left: 4px solid #ef4444; } 
+        .icon-p { color: #ef4444; }
+        .card-ab { border-left: 4px solid #3b82f6; } 
+        .icon-ab { color: #3b82f6; }
+        .card-g { border-left: 4px solid #22c55e; } 
+        .icon-g { color: #22c55e; }
+        .card-n { border-left: 4px solid #f97316; } 
+        .icon-n { color: #f97316; }
+
+        .family-badge { font-size: 0.7rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; margin-bottom: 0.5rem; display: inline-block; }
+        .bg-nist { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+        .bg-btc { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .bg-brain { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        .bg-ed { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+        
+        .eq-box { background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; text-align: center; color: #cbd5e1; font-family: 'Times New Roman', serif; font-size: 1.1rem; }
+        
+        .detail-box { background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 1rem; margin-top: 1rem; border: 1px solid #334155; flex-grow: 1; }
+        .detail-title { font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .text-issue { color: #f87171; }
+        .text-feat { color: #38bdf8; }
+
+        .raw-data-btn { margin-top: 1rem; width: 100%; padding: 0.5rem; border: 1px dashed #475569; border-radius: 6px; color: #94a3b8; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .raw-data-btn:hover { background: rgba(255,255,255,0.05); color: white; border-color: #94a3b8; }
+        .raw-data-panel { display: none; margin-top: 1rem; background: #000; padding: 1rem; border-radius: 8px; border: 1px solid #334155; font-family: 'Roboto Mono', monospace; font-size: 0.7rem; color: #cbd5e1; word-break: break-all; line-height: 1.5; }
+        .raw-data-panel.show { display: block; animation: slideDown 0.3s ease-out; }
+        .raw-key { color: #facc15; font-weight: bold; display: block; margin-top: 0.5rem; }
+        .raw-val { color: #94a3b8; display: block; padding-left: 1rem; border-left: 2px solid #334155; margin-left: 2px; }
+
+        /* Graph Styles */
+        .graph-container { background: #0f172a; border: 1px solid #475569; border-radius: 12px; height: 400px; position: relative; overflow: hidden; margin-top: 2rem; }
+        .graph-ui-overlay { position: absolute; top: 1rem; left: 1rem; pointer-events: none; }
+        .graph-label { background: rgba(0,0,0,0.7); color: #cbd5e1; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #475569; margin-bottom: 4px; display: inline-block; clear: both; float: left; }
+        
+        .graph-btn { background: #2563eb; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; border: 1px solid #3b82f6; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 8px; }
+        .graph-btn:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .graph-btn:disabled { background: #334155; border-color: #475569; color: #94a3b8; cursor: not-allowed; transform: none; }
+
+        .axis { stroke: #334155; stroke-width: 1; }
+        .curve-path { fill: none; stroke: #3b82f6; stroke-width: 3; }
+        .point { r: 5; stroke: #fff; stroke-width: 1.5; transition: all 0.5s; cursor: pointer; }
+        .point-G { fill: #22c55e; } 
+        .point-chaos { fill: #f59e0b; } 
+        .point-mod { fill: #a855f7; stroke: #d8b4fe; }
+        
+        .connect-line { stroke: #f59e0b; stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.6; }
+        .field-box { fill: none; stroke: #ef4444; stroke-width: 2; stroke-dasharray: 8 4; opacity: 0.8; }
+        .label-text { font-size: 11px; font-weight: bold; fill: #e2e8f0; text-shadow: 0 2px 4px black; }
+        .anno-text { font-size: 12px; font-weight: bold; fill: #ef4444; }
+
+        .code-toggle { background: #1e293b; border: 1px solid #334155; border-radius: 8px; margin-top: 1.5rem; overflow: hidden; }
+        .code-toggle summary { padding: 0.75rem 1rem; cursor: pointer; font-size: 0.875rem; font-weight: bold; color: #60a5fa; background: rgba(30, 41, 59, 0.5); display: flex; align-items: center; gap: 0.5rem; transition: background 0.2s; }
+        .code-content { padding: 1rem; background: #0f172a; border-top: 1px solid #334155; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; color: #cbd5e1; overflow-x: auto; line-height: 1.6; white-space: pre; }
+        .code-comment { color: #64748b; font-style: italic; } .code-keyword { color: #c084fc; } .code-func { color: #60a5fa; } .code-str { color: #facc15; }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    
+    <script>
+        function toggleRawData(id) { document.getElementById(id).classList.toggle('show'); }
+    </script>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-6xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-purple-500 font-bold tracking-wider text-sm uppercase">ECC Infrastructure</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                Domain Parameters<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">통신의 전제 조건: 6가지 약속</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">"이 곡선 위에서 만나자." 암호화 통신을 시작하기 전, 양쪽이 반드시 공유해야 하는 수학적 상수 세트(\(T\))를 정의합니다.</p>
+        </header>
+
+        <section class="page-section mb-16">
+            <h2 class="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <span class="text-blue-500">#1.</span> 도메인 파라미터 시각화 (Modulo Visualization)
+            </h2>
+            <p class="text-slate-300 mb-6 max-w-4xl">
+                도메인 파라미터 \(T = (p, a, b, G, n, h)\)의 역할을 확인하세요.<br>
+                특히 <strong>5G</strong>처럼 곡선을 따라 우주 끝까지 날아가는 점들이, <strong>붉은 박스(Field \(p\))</strong>에 의해 어떻게 <strong>안쪽으로 '강제 소환(Modulo)'</strong> 되는지 확인해보세요.
+            </p>
+
+            <div class="graph-container">
+                <svg width="100%" height="100%" viewBox="0 0 600 400" id="param-graph">
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#f59e0b" />
+                        </marker>
+                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#334155" stroke-width="0.5" opacity="0.3"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+                    
+                    <rect x="20" y="20" width="560" height="360" class="field-box" rx="10" />
+                    <text x="35" y="50" class="anno-text">Field Limit (p)</text>
+
+                    <line x1="20" y1="200" x2="580" y2="200" class="axis" /> 
+                    <line x1="300" y1="20" x2="300" y2="380" class="axis" /> 
+
+                    <path id="curve-path" class="curve-path" />
+
+                    <g id="points-group"></g>
+                </svg>
+
+                <div class="graph-ui-overlay">
+                    <div class="graph-label text-blue-300">Curve: \(y^2 = x^3 + 7\)</div>
+                    <div class="graph-label text-red-300">p: Modulo Box</div>
+                    <div class="graph-label text-purple-300">Modulo: Wrapped Point</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-center mt-6">
+                <button class="graph-btn" id="btn-chaos" onclick="runChaosWalk()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M10.804 8 5 4.633v6.734L10.804 8zm.792-.696a.802.802 0 0 1 0 1.392l-6.363 3.692C4.713 12.69 4 12.345 4 11.692V4.308c0-.653.713-.998 1.233-.696l6.363 3.692z"/>
+                    </svg>
+                    카오스 점프 시작 (Run with Modulo)
+                </button>
+                <div id="chaos-status" class="mt-2 text-sm text-orange-400 font-bold hidden">Calculated 1G...</div>
+            </div>
+
+            <div class="param-grid">
+                <div class="spec-card card-p">
+                    <div class="spec-icon icon-p">🏟️</div>
+                    <h3 class="font-bold text-lg text-white mb-1">1. Field Size (\(p\))</h3>
+                    <p class="text-xs text-slate-500">좌표값이 붉은 박스를 넘어가면, 반대편에서 튀어나오게(Modulo) 만드는 한계값입니다.</p>
+                </div>
+                <div class="spec-card card-ab">
+                    <div class="spec-icon icon-ab">📈</div>
+                    <h3 class="font-bold text-lg text-white mb-1">2. Coefficients (\(a, b\))</h3>
+                    <p class="text-xs text-slate-500">파란색 곡선. \(y^2 = x^3 + 7\)의 모양을 결정합니다.</p>
+                </div>
+                <div class="spec-card card-g">
+                    <div class="spec-icon icon-g">📍</div>
+                    <h3 class="font-bold text-lg text-white mb-1">3. Base Point (\(G\))</h3>
+                    <p class="text-xs text-slate-500">초록색 점. 모든 키 생성의 출발점입니다.</p>
+                </div>
+                <div class="spec-card card-n">
+                    <div class="spec-icon icon-n">🔄</div>
+                    <h3 class="font-bold text-lg text-white mb-1">4. Order (\(n\))</h3>
+                    <p class="text-xs text-slate-500">주황색 이동. 모듈러 연산으로 인해 점들이 순환하는 총 횟수입니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section mb-16">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-green-500">#2.</span> 4대 타원 곡선 (Spec & Raw Data)
+            </h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="spec-card bg-slate-800/50 hover:bg-slate-800 transition">
+                    <span class="family-badge bg-nist">🇺🇸 NIST (미국 표준)</span>
+                    <h3 class="text-xl font-bold text-white mt-1 mb-2">P-256</h3>
+                    <div class="eq-box">\( y^2 = x^3 - 3x + b \)</div>
+                    <div class="detail-box">
+                        <div class="detail-title text-issue">⚠️ The Seed Issue</div>
+                        <p class="text-xs text-slate-400">계수 b 생성용 Seed의 출처가 불분명하여 백도어 의혹이 있습니다.</p>
+                    </div>
+                    <button class="raw-data-btn" onclick="toggleRawData('raw-nist')">🔍 상세 스펙 보기 (Raw Hex)</button>
+                    <div id="raw-nist" class="raw-data-panel">
+                        <span class="raw-key">p:</span> <span class="raw-val">FFFFFFFF 00000001 00000000 00000000 00000000 FFFFFFFF FFFFFFFF FFFFFFFF</span>
+                        <span class="raw-key">a:</span> <span class="raw-val">FFFFFFFF ... FFFFFFFC (-3)</span>
+                        <span class="raw-key">b:</span> <span class="raw-val">5AC635D8 AA3A93E7 B3EBBD55 769886BC 651D06B0 CC53B0F6 3BCE3C3E 27D2604B</span>
+                        <span class="raw-key">n:</span> <span class="raw-val">FFFFFFFF 00000000 FFFFFFFF FFFFFFFF BCE6FAAD A7179E84 F3B9CAC2 FC632551</span>
+                    </div>
+                </div>
+
+                <div class="spec-card bg-slate-800/50 hover:bg-slate-800 transition">
+                    <span class="family-badge bg-btc">🪙 SECG (비트코인)</span>
+                    <h3 class="text-xl font-bold text-white mt-1 mb-2">secp256k1</h3>
+                    <div class="eq-box">\( y^2 = x^3 + 7 \)</div>
+                    <div class="detail-box">
+                        <div class="detail-title text-feat">⚡ Transparent</div>
+                        <p class="text-xs text-slate-400">a=0, b=7로 단순하여 백도어 가능성을 수학적으로 차단했습니다.</p>
+                    </div>
+                    <button class="raw-data-btn" onclick="toggleRawData('raw-btc')">🔍 상세 스펙 보기 (Raw Hex)</button>
+                    <div id="raw-btc" class="raw-data-panel">
+                        <span class="raw-key">p:</span> <span class="raw-val">FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F</span>
+                        <span class="raw-key">a:</span> <span class="raw-val">00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000</span>
+                        <span class="raw-key">b:</span> <span class="raw-val">00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000007</span>
+                        <span class="raw-key">n:</span> <span class="raw-val">FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141</span>
+                    </div>
+                </div>
+
+                <div class="spec-card bg-slate-800/50 hover:bg-slate-800 transition">
+                    <span class="family-badge bg-brain">🇪🇺 Brainpool (유럽)</span>
+                    <h3 class="text-xl font-bold text-white mt-1 mb-2">brainpoolP256r1</h3>
+                    <div class="eq-box">\( y^2 = x^3 + ax + b \)</div>
+                    <div class="detail-box">
+                        <div class="detail-title text-feat">🛡️ Nothing-up-my-sleeve</div>
+                        <p class="text-xs text-slate-400">자연 상수(π, e)를 기반으로 계수를 생성하여 투명성을 보장합니다.</p>
+                    </div>
+                    <button class="raw-data-btn" onclick="toggleRawData('raw-brain')">🔍 상세 스펙 보기 (Raw Hex)</button>
+                    <div id="raw-brain" class="raw-data-panel">
+                        <span class="raw-key">p:</span> <span class="raw-val">A9FB57DB A1EEA9BC ... 1F6E5377</span>
+                        <span class="raw-key">a:</span> <span class="raw-val">7D5A0975 FC2C3057 ... F3306494</span>
+                        <span class="raw-key">b:</span> <span class="raw-val">26DC5C6C E94A4B44 ... FB8055C1</span>
+                        <span class="raw-key">n:</span> <span class="raw-val">A9FB57DB A1EEA9BC ... 974856A7</span>
+                    </div>
+                </div>
+
+                <div class="spec-card bg-slate-800/50 hover:bg-slate-800 transition">
+                    <span class="family-badge bg-ed">🚀 Modern (DJB)</span>
+                    <h3 class="text-xl font-bold text-white mt-1 mb-2">Ed25519</h3>
+                    <div class="eq-box">\( -x^2 + y^2 = 1 + dx^2y^2 \)</div>
+                    <div class="detail-box">
+                        <div class="detail-title text-feat">🏎️ High Performance</div>
+                        <p class="text-xs text-slate-400">Twisted Edwards 형태를 사용하여 부채널 공격 방어와 압도적 속도를 달성했습니다.</p>
+                    </div>
+                    <button class="raw-data-btn" onclick="toggleRawData('raw-ed')">🔍 상세 스펙 보기 (Values)</button>
+                    <div id="raw-ed" class="raw-data-panel">
+                        <span class="raw-key">p:</span> <span class="raw-val">\(2^{255} - 19\)</span>
+                        <span class="raw-key">d:</span> <span class="raw-val">-121665 / 121666 (mod p)</span>
+                        <span class="raw-key">G:</span> <span class="raw-val">y = 4/5 (mod p)</span>
+                        <span class="raw-key">n:</span> <span class="raw-val">\(2^{252} + 27742317777372353535851937790883648493\)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-purple-500">#3.</span> 코드로 확인하기
+            </h2>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <details class="code-toggle" open>
+                    <summary>Python Code: 여러 곡선 불러오기 (ecdsa)</summary>
+                    <div class="code-content">
+<span class="code-keyword">from</span> ecdsa <span class="code-keyword">import</span> NIST256p, SECP256k1, BRAINPOOLP256r1
+
+print(<span class="code-str">"--- NIST P-256 ---"</span>)
+print(<span class="code-str">f"Equation: y^2 = x^3 + {hex(NIST256p.curve.a())}x + {hex(NIST256p.curve.b())}"</span>)
+
+print(<span class="code-str">"--- secp256k1 ---"</span>)
+print(<span class="code-str">f"Equation: y^2 = x^3 + {hex(SECP256k1.curve.a())}x + {hex(SECP256k1.curve.b())}"</span>)
+                    </div>
+                </details>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        (function() {
+            const svg = document.getElementById('param-graph');
+            const pathEl = document.getElementById('curve-path');
+            const group = document.getElementById('points-group');
+            const status = document.getElementById('chaos-status');
+            const btn = document.getElementById('btn-chaos');
+
+            const cx = 300, cy = 200, s = 15;
+            const toSvg = (x, y) => ({ x: cx + x * s, y: cy - y * s });
+            
+            const pLimitX = 18.0; 
+            const pLimitY = 12.0; 
+
+            const getY = (x) => {
+                let val = Math.pow(x, 3) + 7;
+                return val < 0 ? 0 : Math.sqrt(val);
+            };
+
+            function drawCurve() {
+                let dTop = "", dBot = "";
+                for(let x = -1.91; x <= 20.0; x += 0.1) {
+                    let y = getY(x);
+                    let p = toSvg(x, y);
+                    dTop += (dTop ? "L" : "M") + `${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+                }
+                for(let x = -1.91; x <= 20.0; x += 0.1) {
+                    let y = -getY(x);
+                    let p = toSvg(x, y);
+                    dBot += (dBot ? "L" : "M") + `${p.x.toFixed(1)} ${p.y.toFixed(1)} `;
+                }
+                pathEl.setAttribute('d', dTop + " " + dBot);
+            }
+            drawCurve();
+
+            const a = 0;
+            function pointAdd(p1, p2) {
+                let m;
+                if (Math.abs(p1.x - p2.x) < 0.001 && Math.abs(p1.y - p2.y) < 0.001) {
+                    m = (3 * p1.x * p1.x + a) / (2 * p1.y);
+                } else {
+                    m = (p2.y - p1.y) / (p2.x - p1.x);
+                }
+                const x3 = m * m - p1.x - p2.x;
+                const y3 = m * (p1.x - x3) - p1.y;
+                return { x: x3, y: y3 };
+            }
+
+            const G = { x: -1.0, y: Math.sqrt(6), label: "1G" };
+            let points = [G];
+            let current = G;
+            for(let i=2; i<=5; i++) {
+                current = pointAdd(current, G);
+                points.push({ ...current, label: i+"G" });
+            }
+
+            const pG = toSvg(G.x, G.y);
+            group.innerHTML = `<circle cx="${pG.x}" cy="${pG.y}" class="point point-G" /><text x="${pG.x+10}" y="${pG.y-10}" class="label-text" fill="#22c55e">G</text>`;
+
+            function applyModulo(val, limit) {
+                let range = 2 * limit;
+                while (val > limit) val -= range;
+                while (val < -limit) val += range;
+                return val;
+            }
+
+            window.runChaosWalk = function() {
+                btn.disabled = true;
+                group.innerHTML = `<circle cx="${pG.x}" cy="${pG.y}" class="point point-G" /><text x="${pG.x+10}" y="${pG.y-10}" class="label-text" fill="#22c55e">G</text>`;
+                status.classList.remove('hidden');
+                
+                let idx = 0; 
+                function nextJump() {
+                    if (idx >= points.length - 1) {
+                        status.innerHTML = "Modulo Complete! Points are trapped in p.";
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    const prevPt = points[idx];
+                    const nextPt = points[idx+1];
+                    idx++;
+
+                    let isWrapped = false;
+                    let displayX = nextPt.x;
+                    let displayY = nextPt.y;
+
+                    if (Math.abs(displayX) > pLimitX || Math.abs(displayY) > pLimitY) {
+                        isWrapped = true;
+                        displayX = applyModulo(displayX, pLimitX);
+                        displayY = applyModulo(displayY, pLimitY);
+                    }
+
+                    const p2_wrapped = toSvg(displayX, displayY);
+
+                    status.innerHTML = `Computing ${nextPt.label}: ${isWrapped ? "OUTSIDE -> WRAP!" : "Inside"}`;
+
+                    if(isWrapped) {
+                        setTimeout(() => {
+                            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                            circle.setAttribute("cx", p2_wrapped.x); circle.setAttribute("cy", p2_wrapped.y);
+                            circle.setAttribute("class", "point point-mod"); 
+                            
+                            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                            text.setAttribute("x", p2_wrapped.x + 8); text.setAttribute("y", p2_wrapped.y - 8);
+                            text.setAttribute("class", "label-text");
+                            text.setAttribute("fill", "#a855f7"); 
+                            text.textContent = nextPt.label + " (mod p)";
+
+                            group.appendChild(circle);
+                            group.appendChild(text);
+                            setTimeout(nextJump, 1000);
+                        }, 400);
+                    } else {
+                        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                        line.setAttribute("x1", toSvg(prevPt.x, prevPt.y).x); line.setAttribute("y1", toSvg(prevPt.x, prevPt.y).y); 
+                        
+                        if (!isWrapped) {
+                             group.appendChild(line);
+                        }
+
+                        setTimeout(() => {
+                            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                            circle.setAttribute("cx", p2_wrapped.x); circle.setAttribute("cy", p2_wrapped.y);
+                            circle.setAttribute("class", "point point-chaos");
+                            
+                            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                            text.setAttribute("x", p2_wrapped.x + 8); text.setAttribute("y", p2_wrapped.y - 8);
+                            text.setAttribute("class", "label-text");
+                            text.setAttribute("fill", "#f59e0b");
+                            text.textContent = nextPt.label;
+
+                            group.appendChild(circle);
+                            group.appendChild(text);
+                            setTimeout(nextJump, 800);
+                        }, 400);
+                    }
+                }
+                setTimeout(nextJump, 500);
+            };
+        })();
+    </script>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

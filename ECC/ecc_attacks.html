@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECC 보안 위협과 방어 - 심층 분석</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+    
+    <style>
+        /* attack 페이지 전용 스타일 */
+        .attack-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; position: relative; overflow: hidden; }
+        .attack-card::before { content: ""; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+        .attack-danger { border-color: #ef4444; } .attack-danger::before { background: #ef4444; }
+        .attack-warning { border-color: #f59e0b; } .attack-warning::before { background: #f59e0b; }
+        .attack-info { border-color: #3b82f6; } .attack-info::before { background: #3b82f6; }
+        
+        .math-box { background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: 8px; border: 1px dashed #475569; font-family: monospace; margin: 1rem 0; color: #e2e8f0; }
+        .diagram-box { background: #0f172a; padding: 1.5rem; border-radius: 8px; text-align: center; margin-top: 1.5rem; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="ecdlp.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to ECDLP
+    </a>
+
+    <div class="max-w-4xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="mb-12 border-b border-slate-800 pb-8">
+            <span class="text-red-500 font-bold tracking-wider text-sm uppercase">Security Deep Dive</span>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-100 mt-2">
+                왜 아무 곡선이나 쓰면 안 될까?<br>
+                <span class="text-slate-500">주요 공격 알고리즘과 수학적 방어 원리</span>
+            </h1>
+        </header>
+
+        <section class="attack-card attack-warning">
+            <h2 class="text-2xl font-bold text-orange-400 mb-4 flex items-center gap-2">
+                1. Pollard's rho 알고리즘 (크기의 문제)
+            </h2>
+            <p class="text-slate-300 mb-4">
+                <strong>Q: "점의 개수(\(n\))가 작은 소인수를 가지면 안 된다는데, 대체 얼마나 커야 하나요?"</strong>
+            </p>
+            
+            <div class="space-y-4">
+                <div class="bg-slate-800/50 p-4 rounded">
+                    <h3 class="font-bold text-white mb-2">🛡️ 방어 원리: 제곱근의 법칙</h3>
+                    <p class="text-sm text-slate-400 mb-2">
+                        이 공격법은 무차별 대입(\(n\))보다 훨씬 효율적인 <strong>\(\sqrt{n}\)</strong>의 시간 복잡도를 가집니다. (Birthday Paradox 원리)
+                    </p>
+                    <ul class="list-disc list-inside text-sm text-slate-300 space-y-1">
+                        <li>만약 \(n\)이 작다면? \(\rightarrow\) 금방 풀립니다.</li>
+                        <li>만약 \(n\)이 합성수(소수가 아님)라면? \(\rightarrow\) 작은 소인수 단위로 쪼개져서 풀립니다.</li>
+                    </ul>
+                </div>
+
+                <div class="math-box">
+                    <div class="text-center font-bold text-yellow-400 mb-2">[보안 강도 계산]</div>
+                    우리가 원하는 보안 강도: <strong>128-bit</strong> (\(2^{128}\)번 연산 필요)<br>
+                    공격자의 능력: \(\sqrt{n}\)<br>
+                    <br>
+                    따라서: \(\sqrt{n} \approx 2^{128}\) 이어야 함.<br>
+                    \(\therefore n \approx (2^{128})^2 = 2^{256}\)
+                </div>
+
+                <p class="text-green-400 font-bold text-sm">
+                    ✅ 결론: 그래서 SEC 1 표준은 \(n\)이 최소 \(2^{256}\) 크기인 '소수(Prime)'인 곡선(P-256)을 사용합니다.
+                </p>
+            </div>
+        </section>
+
+        <section class="attack-card attack-info">
+            <h2 class="text-2xl font-bold text-blue-400 mb-4 flex items-center gap-2">
+                2. MOV / Frey-Rück 공격 (구조의 문제)
+            </h2>
+            <p class="text-slate-300 mb-4">
+                <strong>Q: "곡선이 특수한 성질을 가지면 안 된다는 게 무슨 뜻인가요?"</strong>
+            </p>
+
+            <div class="space-y-4">
+                <div class="bg-slate-800/50 p-4 rounded">
+                    <h3 class="font-bold text-white mb-2">🛡️ 방어 원리: 임베딩 차수(Embedding Degree)</h3>
+                    <p class="text-sm text-slate-400 mb-2">
+                        타원 곡선 위에는 <strong>'Weil Pairing'</strong>이라는 특수 지도가 존재합니다. 이 지도를 이용하면, 어려운 타원 곡선 문제(ECDLP)를 조금 더 쉬운 <strong>일반 유한체 문제(DLP)</strong>로 옮겨서(이송) 풀 수 있습니다.
+                    </p>
+                    <p class="text-sm text-slate-400 mt-2">
+                        이때, 문제를 옮길 수 있는 조건을 <strong>임베딩 차수 \(k\)</strong>라고 합니다.
+                    </p>
+                </div>
+
+                <div class="diagram-box">
+                    <div class="flex justify-center items-center gap-4 text-sm">
+                        <div class="border border-red-500 p-3 rounded text-red-400">
+                            <strong>ECC World</strong><br>
+                            (Hard: 지수적 시간)
+                        </div>
+                        <div class="text-2xl">➡</div>
+                        <div class="border border-blue-500 p-3 rounded text-blue-400">
+                            <strong>Finite Field</strong><br>
+                            (Easier: 준지수적 시간)
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2">MOV 공격은 문제를 쉬운 곳으로 '차원 이동' 시킵니다.</p>
+                </div>
+
+                <div class="math-box">
+                    <div class="text-center font-bold text-yellow-400 mb-2">[조건]</div>
+                    \(k\) 값이 작으면(예: 1, 2, 3...) 이동이 가능함 \(\rightarrow\) <strong>위험!</strong><br>
+                    \(k\) 값이 매우 크면 이동 불가능 \(\rightarrow\) <strong>안전!</strong>
+                </div>
+
+                <p class="text-green-400 font-bold text-sm">
+                    ✅ 결론: SEC 1 표준 곡선들은 \(k\)값이 매우 큰 랜덤 곡선을 선택하여, 이 '차원 이동 통로'를 원천 봉쇄했습니다.
+                </p>
+            </div>
+        </section>
+
+        <section class="attack-card attack-danger">
+            <h2 class="text-2xl font-bold text-red-500 mb-4 flex items-center gap-2">
+                3. Anomalous Curves (동기화의 문제)
+            </h2>
+            <p class="text-slate-300 mb-4">
+                <strong>Q: "왜 \(p\)와 \(n\)이 같으면(\(p=n\)) 큰일나나요?"</strong>
+            </p>
+
+            <div class="space-y-4">
+                <div class="bg-slate-800/50 p-4 rounded">
+                    <h3 class="font-bold text-white mb-2">🛡️ 방어 원리: Smart's Attack</h3>
+                    <p class="text-sm text-slate-400 mb-2">
+                        우리가 앞서 배웠듯, <strong>좌표의 세계(\(p\))</strong>와 <strong>점프 횟수의 세계(\(n\))</strong>는 서로 엇박자(Mismatched)가 나야 안전합니다.
+                    </p>
+                    <p class="text-sm text-slate-400 mt-2">
+                        만약 \(p = n\)이 되면, 두 세계가 완벽하게 <strong>동기화</strong>됩니다. 이때는 <strong>Smart's Attack</strong>이라는 알고리즘을 쓸 수 있는데, 이것은 복잡한 타원 곡선 덧셈을 <strong>단순한 1차원 정수 덧셈</strong>으로 바꿔버립니다.
+                    </p>
+                </div>
+
+                <div class="math-box text-center">
+                    <div class="font-bold text-red-400 mb-2">[Smart's Attack 결과]</div>
+                    복잡한 문제: \(Q = d \times P\) (로그 문제)<br>
+                    <div class="text-2xl my-2">⬇</div>
+                    단순한 문제: \(Q' \equiv d \times P' \pmod p\)<br>
+                    <br>
+                    <span class="text-yellow-400">결국: \(d = Q' / P' \pmod p\)</span><br>
+                    (나눗셈 한 번으로 개인키 \(d\)가 즉시 노출됨)
+                </div>
+
+                <p class="text-green-400 font-bold text-sm">
+                    ✅ 결론: 그래서 표준 곡선은 \(p\)와 \(n\)이 절대로 같지 않도록 설계되었습니다. (실제로는 약 \(2^{128}\) 이상의 차이가 남)
+                </p>
+            </div>
+        </section>
+
+        <section class="text-center mt-12 mb-8">
+            <p class="text-slate-400">
+                이처럼 ECC 표준 파라미터는 수학적으로 증명된 모든 쥐구멍을 막아둔 <strong>'검증된 요새'</strong>입니다.
+            </p>
+        </section>
+
+    </div>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography & Provided PDF Analysis</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

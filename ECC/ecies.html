@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECIES Encryption - 하이브리드 암호화</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/ecc.css">
+
+    <style>
+        /* Base Styles */
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'sans-serif'; }
+        .page-section { border-bottom: 1px dashed #334155; padding-bottom: 4rem; margin-bottom: 4rem; }
+        .page-section:last-child { border-bottom: none; }
+        
+        /* Section 0: Prerequisite (Data Size) */
+        .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+        .size-card { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; position: relative; overflow: hidden; }
+        .size-badge { font-size: 0.75rem; font-weight: bold; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 0.5rem; }
+        
+        .badge-small { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .badge-large { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+        
+        .size-visual { height: 60px; display: flex; align-items: center; margin: 1rem 0; gap: 4px; }
+        .bit-block { height: 40px; background: #475569; border-radius: 4px; }
+        
+        /* Section 1: Concept Comparison */
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .compare-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; }
+        .compare-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        
+        .tech-detail { font-size: 0.85rem; color: #94a3b8; background: #1e293b; padding: 10px; border-radius: 6px; margin-top: 10px; border-left: 3px solid; }
+        .detail-ecc { border-color: #f59e0b; }
+        .detail-aes { border-color: #10b981; }
+
+        /* Simulator UI */
+        .flow-container { display: flex; flex-direction: column; gap: 1rem; background: #0f172a; padding: 1.5rem; border-radius: 12px; border: 1px solid #334155; }
+        
+        .flow-row { display: grid; grid-template-columns: 80px 1fr 50px; align-items: center; gap: 1rem; padding: 1rem; background: #1e293b; border-radius: 8px; border: 1px solid #475569; opacity: 0.4; transition: all 0.4s ease; transform: scale(0.99); }
+        .flow-row.active { opacity: 1; border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); transform: scale(1); }
+        .flow-row.done { opacity: 0.6; border-color: #22c55e; transform: scale(1); }
+        
+        .actor { font-weight: bold; font-size: 0.9rem; text-align: center; }
+        .actor-alice { color: #60a5fa; }
+        .actor-bob { color: #4ade80; }
+        .actor-net { color: #facc15; }
+        
+        .step-badge { font-size: 0.7rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; background: #334155; color: #cbd5e1; margin-bottom: 6px; display: inline-block; }
+        .step-detail { font-family: 'Roboto Mono', monospace; font-size: 0.8rem; color: #94a3b8; }
+        .status-icon { font-size: 1.5rem; text-align: center; }
+        
+        .input-area { background: #1e293b; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; border: 1px solid #475569; display: flex; gap: 1rem; align-items: center; }
+        .msg-input { background: #0f172a; border: 1px solid #475569; color: white; padding: 0.8rem; border-radius: 6px; flex-grow: 1; font-family: 'Roboto Mono', monospace; outline: none; }
+        .msg-input:focus { border-color: #3b82f6; }
+        
+        .btn-send { background: #2563eb; color: white; padding: 0 24px; height: 46px; border-radius: 6px; font-weight: bold; transition: background 0.2s; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .btn-send:hover { background: #1d4ed8; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-900 text-slate-200">
+
+    <a href="index.html" class="home-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Dashboard
+    </a>
+
+    <div class="max-w-4xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-teal-400 font-bold tracking-wider text-sm uppercase">Hybrid Encryption Protocol</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                ECIES (Integrated Encryption Scheme)<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">ECC로 키를 맺고, AES로 데이터를 잠근다</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4">
+                "안전하지만 느린 ECC"와 "빠르고 강력한 AES"를 결합한 현대 암호 통신의 표준입니다.
+            </p>
+        </header>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-yellow-500">0.</span> 사전 지식: 데이터 크기별 전략
+            </h2>
+            <p class="text-slate-400 text-sm mb-6">
+                암호화 알고리즘은 <strong>데이터의 용량</strong>에 따라 역할이 철저히 나뉩니다.
+            </p>
+            
+            <div class="size-grid">
+                <div class="size-card">
+                    <span class="size-badge badge-small">Small Data (Key, Hash)</span>
+                    <h3 class="font-bold text-lg text-white">비대칭키 (ECC, RSA)</h3>
+                    <div class="size-visual">
+                        <div class="bit-block bg-yellow-500 w-8 animate-pulse"></div>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        <strong>256-bit 내외의 아주 작은 데이터</strong>(비밀키, 서명) 처리에 특화되어 있습니다. 긴 데이터를 넣으면 처리가 불가능하거나 매우 느립니다.
+                    </p>
+                </div>
+
+                <div class="size-card">
+                    <span class="size-badge badge-large">Large Data (File, Video)</span>
+                    <h3 class="font-bold text-lg text-white">대칭키 (AES, ChaCha20)</h3>
+                    <div class="size-visual">
+                        <div class="bit-block bg-blue-500 w-full"></div>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        <strong>기가바이트(GB) 단위의 대용량 데이터</strong>도 순식간에 처리합니다. 넷플릭스 영상이나 파일 전송은 모두 이것을 사용합니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-blue-500">1.</span> 왜 속도 차이가 날까요?
+            </h2>
+            
+            <div class="compare-grid">
+                <div class="compare-card">
+                    <div class="compare-title text-yellow-400">
+                        <span>🐢 ECC: 고비용 수학 연산</span>
+                    </div>
+                    <p class="text-sm text-slate-300">
+                        ECC는 단순 계산이 아닙니다. 곡선 위에서 <strong>"점 덧셈(Point Addition)"</strong>과 <strong>"두 배 연산(Doubling)"</strong>을 수천 번 반복하는 거대한 수학 문제입니다.
+                    </p>
+                    <div class="tech-detail detail-ecc">
+                        <strong>Logic:</strong> \( Q = G + G + \dots + G \) (d times)<br>
+                        큰 수의 나눗셈(Modulo)이 계속 발생하여 CPU 부하가 큽니다.
+                    </div>
+                </div>
+
+                <div class="compare-card">
+                    <div class="compare-title text-green-400">
+                        <span>🐇 AES: 단순 비트 뒤섞기</span>
+                    </div>
+                    <p class="text-sm text-slate-300">
+                        AES는 수학보다는 <strong>"기계적 치환"</strong>에 가깝습니다. 비트(0,1)를 밀고(Shift), 섞고(Mix), 바꾸는(Sub) 단순 작업의 반복입니다.
+                    </p>
+                    <div class="tech-detail detail-aes">
+                        <strong>Logic:</strong> XOR, Bit-Shift, Substitution<br>
+                        현대 CPU는 이를 위한 전용 명령어(AES-NI)가 있어 빛의 속도로 처리됩니다.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section border-none">
+            <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                <span class="text-green-500">2.</span> ECIES 전송 과정 실습
+            </h2>
+            
+            <div class="input-area">
+                <input type="text" id="msg-input" class="msg-input" value="Hello, ECC World!" placeholder="보낼 메시지를 입력하세요...">
+                <button onclick="runEcies()" id="btn-send" class="btn-send">
+                    <span>🚀 암호화 전송 (Send)</span>
+                </button>
+            </div>
+
+            <div class="flow-container">
+                
+                <div class="flow-row" id="step-1">
+                    <div class="actor actor-alice">Alice</div>
+                    <div class="action-box">
+                        <span class="step-badge bg-blue-900 text-blue-200">1. Key Gen</span>
+                        <div class="font-bold text-sm text-white mb-1">일회용 키(Ephemeral Key) 생성</div>
+                        <div class="step-detail">Random \(r\), Public \(R = r \times G\)</div>
+                    </div>
+                    <div class="status-icon">🎲</div>
+                </div>
+
+                <div class="flow-row" id="step-2">
+                    <div class="actor actor-alice">Alice</div>
+                    <div class="action-box">
+                        <span class="step-badge bg-yellow-900 text-yellow-200">2. ECDH (Slow)</span>
+                        <div class="font-bold text-sm text-white mb-1">비밀키(S) 계산 (수학 연산)</div>
+                        <div class="step-detail">\(S = r \times Q_{Bob}\) <span class="text-slate-500">➜ AES Key 도출</span></div>
+                    </div>
+                    <div class="status-icon">🐢</div>
+                </div>
+
+                <div class="flow-row" id="step-3">
+                    <div class="actor actor-alice">Alice</div>
+                    <div class="action-box">
+                        <span class="step-badge bg-green-900 text-green-200">3. AES Encrypt (Fast)</span>
+                        <div class="font-bold text-sm text-white mb-1">데이터 암호화 (비트 연산)</div>
+                        <div class="step-detail text-red-400" id="cipher-text">waiting...</div>
+                    </div>
+                    <div class="status-icon">🐇</div>
+                </div>
+
+                <div class="flow-row" id="step-4" style="border-style: dashed;">
+                    <div class="actor actor-net">Network</div>
+                    <div class="action-box">
+                        <span class="step-badge bg-slate-700">4. Transport</span>
+                        <div class="font-bold text-sm text-white mb-1">패킷 전송 (공개된 채널)</div>
+                        <div class="step-detail">Packet = [ \(R\) (공개키) || Ciphertext ]</div>
+                    </div>
+                    <div class="status-icon">📡</div>
+                </div>
+
+                <div class="flow-row" id="step-5">
+                    <div class="actor actor-bob">Bob</div>
+                    <div class="action-box">
+                        <span class="step-badge bg-green-900 text-green-200">5. Decrypt</span>
+                        <div class="font-bold text-sm text-white mb-1">복호화 (Key 복원 ➜ AES 해제)</div>
+                        <div class="step-detail">\(S = d_{Bob} \times R\) ➜ AES Key</div>
+                        <div class="mt-2 text-green-400 font-bold text-lg" id="final-msg">waiting...</div>
+                    </div>
+                    <div class="status-icon" id="bob-lock">🔒</div>
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        function runEcies() {
+            const msg = document.getElementById('msg-input').value;
+            if(!msg) { alert("메시지를 입력해주세요!"); return; }
+
+            const btn = document.getElementById('btn-send');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-spin">🔄</span> 처리 중...`;
+
+            // Reset UI
+            document.querySelectorAll('.flow-row').forEach(row => {
+                row.classList.remove('active', 'done');
+                row.style.opacity = '0.4';
+            });
+            document.getElementById('cipher-text').innerText = "waiting...";
+            document.getElementById('final-msg').innerText = "waiting...";
+            document.getElementById('bob-lock').innerText = "🔒";
+
+            const randomHex = () => Array.from({length: 20}, () => Math.floor(Math.random()*16).toString(16)).join('');
+
+            // Sequence
+            const steps = [
+                { id: 'step-1', delay: 500 },
+                { id: 'step-2', delay: 1500 },
+                { id: 'step-3', delay: 2500, action: () => {
+                    document.getElementById('cipher-text').innerText = "0x" + randomHex() + "...";
+                }},
+                { id: 'step-4', delay: 3500 },
+                { id: 'step-5', delay: 4500, action: () => {
+                    document.getElementById('bob-lock').innerText = "🔓";
+                    document.getElementById('final-msg').innerText = `"${msg}"`;
+                    
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = `<span>🚀 암호화 전송 (Send Again)</span>`;
+                    }, 1000);
+                }}
+            ];
+
+            steps.forEach((step, index) => {
+                setTimeout(() => {
+                    const el = document.getElementById(step.id);
+                    el.classList.add('active');
+                    el.style.opacity = '1';
+                    
+                    if(index > 0) {
+                        const prev = document.getElementById(steps[index-1].id);
+                        prev.classList.replace('active', 'done');
+                    }
+                    if(step.action) step.action();
+                }, step.delay);
+            });
+        }
+    </script>
+
+    <footer class="custom-footer dark-footer-style">
+        <div class="footer-inner">
+            <p class="footer-text-mb2">Based on SEC 1: Elliptic Curve Cryptography</p>
+            <p class="footer-text-mb4">&copy; 2026 ECC Master class. Generated for Educational Purpose.</p>
+            <div class="signature-box">
+                <span class="sig-label">Created by</span>
+                <span class="sig-name">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link">
+                    <svg class="email-icon w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
