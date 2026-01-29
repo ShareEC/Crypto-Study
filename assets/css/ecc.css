@@ -1,0 +1,154 @@
+/* assets/css/ecc.css */
+
+/* 메인 컨테이너 */
+.dashboard-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    margin-top: 60px; /* 홈 버튼 공간 확보 */
+}
+
+/* 이미지 컨테이너 */
+.image-box {
+    background: #1e293b; /* Slate 800 */
+    border: 1px dashed #475569;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 40px;
+}
+.image-box img {
+    max-width: 100%;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+/* 3단 그리드 레이아웃 (Left - Center - Right) */
+.ecc-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+@media (min-width: 1024px) {
+    .ecc-grid {
+        grid-template-columns: 1fr 120px 1fr; /* PC: 3단 구성 */
+    }
+}
+
+/* 패널 공통 스타일 */
+.ecc-panel {
+    background: #1e293b; /* Slate 800 */
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid #334155; /* Slate 700 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    height: 100%;
+}
+
+/* 왼쪽 패널 테마 (Orange/Amber) */
+.panel-left { border-top: 4px solid #f97316; }
+.panel-left .section-title { color: #fb923c; }
+.panel-left .icon-box { background: rgba(249, 115, 22, 0.1); color: #fb923c; }
+
+/* 오른쪽 패널 테마 (Teal/Emerald) */
+.panel-right { border-top: 4px solid #14b8a6; }
+.panel-right .section-title { color: #2dd4bf; }
+.panel-right .icon-box { background: rgba(20, 184, 166, 0.1); color: #2dd4bf; }
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 개별 아이템 카드 */
+.item-card {
+    background: #0f172a; /* Slate 900 (더 어둡게) */
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.item-card:hover {
+    transform: translateY(-2px);
+    border-color: #475569;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
+.icon-box {
+    min-width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.card-content h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #f1f5f9; }
+.card-content p { margin: 0; font-size: 0.9rem; color: #94a3b8; line-height: 1.6; word-break: keep-all; }
+.code-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 8px;
+    background: #334155;
+    color: #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* 중앙 곡선 애니메이션 */
+.center-visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    position: relative;
+}
+.curve-svg {
+    overflow: visible;
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.3));
+}
+/* 모바일에서는 중앙 곡선 숨김 */
+@media (max-width: 1024px) {
+    .center-visual { display: none; }
+}
+
+/* Footer 다크 모드용 추가 스타일 */
+.dark-footer-style {
+    background-color: #1e293b; /* Slate 800 */
+    border-top: 1px solid #334155;
+    margin-top: 4rem;
+    padding: 3rem 0;
+}
+.dark-footer-style .footer-inner {
+    color: #64748b; /* Slate 500 */
+    margin: 0 auto;
+    max-width: 56rem;
+    padding: 0 24px;
+    text-align: center;
+    font-size: 0.875rem;
+}
+.dark-footer-style .signature-box {
+    border-top: 1px solid #334155;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.dark-footer-style .sig-label { color: #64748b; }
+.dark-footer-style .sig-name { font-weight: 700; color: #e2e8f0; }
+.dark-footer-style .email-link { color: #3b82f6; display: flex; align-items: center; }
+.dark-footer-style .email-link:hover { color: #60a5fa; }
+.dark-footer-style .email-icon { width: 1rem; height: 1rem; }
