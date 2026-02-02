@@ -243,6 +243,58 @@
                     </div>
                 </div>
             </div>
+
+            <div class="mt-12 bg-slate-800/50 border border-slate-700 rounded-xl p-6">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <span class="text-purple-400">⚡ Insight:</span> 검증 공식은 어디서 왔을까요?
+                </h3>
+                <p class="text-sm text-slate-400 mb-6">
+                    검증 공식(\(u_1 G + u_2 Q\))은 하늘에서 떨어진 게 아닙니다. <strong>서명 공식을 역으로 뒤집어서 유도</strong>해낸 것입니다.
+                </p>
+
+                <div class="grid md:grid-cols-3 gap-4 items-stretch text-center">
+                    
+                    <div class="bg-slate-900 p-4 rounded-lg border border-pink-500/30 flex flex-col justify-center relative">
+                        <div class="text-xs text-pink-400 font-bold mb-2">1. 서명 공식 (Start)</div>
+                        <div class="text-lg font-mono text-white mb-2">
+                            \( s = k^{-1} (z + r \cdot d) \)
+                        </div>
+                        <p class="text-xs text-slate-500">
+                            "랜덤값 k로 비밀을 감쌈"
+                        </p>
+                        <div class="hidden md:block absolute -right-6 top-1/2 transform -translate-y-1/2 text-slate-600 text-xl">➜</div>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-lg border border-purple-500/30 flex flex-col justify-center relative">
+                        <div class="text-xs text-purple-400 font-bold mb-2">2. k에 대해 정리 (Invert)</div>
+                        <div class="text-sm font-mono text-slate-300 mb-1">
+                            \( k = s^{-1} (z + r \cdot d) \)
+                        </div>
+                        <div class="text-lg font-mono text-white mb-2">
+                            \( k = z \cdot w + r \cdot d \cdot w \)
+                        </div>
+                        <p class="text-xs text-slate-500">
+                            * \( w = s^{-1} \)
+                        </p>
+                        <div class="hidden md:block absolute -right-6 top-1/2 transform -translate-y-1/2 text-slate-600 text-xl">➜</div>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-lg border border-blue-500/30 flex flex-col justify-center">
+                        <div class="text-xs text-blue-400 font-bold mb-2">3. 점(Point)으로 변환 (Verify)</div>
+                        <div class="text-sm font-mono text-slate-300 mb-1">
+                            \( k \cdot G = (z w) \cdot G + (r w) \cdot d \cdot G \)
+                        </div>
+                        <div class="text-lg font-bold font-mono text-green-400 mt-1">
+                            \( \mathbf{P} = u_1 G + u_2 Q \)
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">
+                            * \( Q = dG \) (공개키)<br>
+                            * 좌변 \( kG \)는 원래 점 \( R \)과 같아야 함!
+                        </p>
+                    </div>
+
+                </div>
+            </div>
         </section>
 
         <section class="sim-section">
@@ -372,7 +424,7 @@
 
         const CURVE_VIZ_CONFIG = {
             'secp256k1': { 
-                offsetX: 200, offsetY: 200, scale: 40, // Updated to 40 per request
+                offsetX: 200, offsetY: 200, scale: 40, 
                 startX: -1.9129, endX: 3.5 
             },
             'P-256': { 
@@ -634,7 +686,7 @@
                 <span class="sig-label">Created by</span>
                 <span class="sig-name">EunChang</span>
                 <a href="mailto:focus81@teia.co.kr" class="email-link">
-                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                 </a>
             </div>
         </div>
