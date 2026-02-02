@@ -547,7 +547,7 @@ R = P + Q
     <script>
         // --- Real-time Geometry Engine (Math Perfect) ---
         (function drawGeometry() {
-            const cx = 150, cy = 150, s = 40;
+            const cx = 150, cy = 150, s = 35;
             const toSvg = (x, y) => ({ x: cx + x * s, y: cy - y * s });
 
             // 1. Draw Curve
@@ -569,8 +569,12 @@ R = P + Q
             }
             document.getElementById('curve-path-el').setAttribute('d', pathD + pathLower);
 
-            // 2. Define Points
-            const xP = -1.4; const xQ = 0.8;
+            // 2. Define Points (Modified for better visualization)
+            // OLD: xP = -1.4, xQ = 0.8  => Resulted in crowded intersection
+            // NEW: xP further left, xQ closer to y-axis => creates separation
+            const xP = -1.8; 
+            const xQ = 0.5;
+            
             const yP = Math.sqrt(Math.pow(xP, 3) + 7);
             const yQ = Math.sqrt(Math.pow(xQ, 3) + 7);
             const slope = (yQ - yP) / (xQ - xP);
@@ -590,10 +594,11 @@ R = P + Q
                 if(el) { el.setAttribute('x', p.x + dx); el.setAttribute('y', p.y + dy); }
             };
 
-            setPt('pt-P', pP); setLbl('lbl-P', pP, -15, -10);
-            setPt('pt-Q', pQ); setLbl('lbl-Q', pQ, -10, -10);
-            setPt('pt-I', pI); setLbl('lbl-I', pI, 10, 0); 
-            setPt('pt-R', pR); setLbl('lbl-R', pR, 10, 5); 
+            // Adjusted label positions for clarity
+            setPt('pt-P', pP); setLbl('lbl-P', pP, -5, -15);
+            setPt('pt-Q', pQ); setLbl('lbl-Q', pQ, -5, -15);
+            setPt('pt-I', pI); setLbl('lbl-I', pI, 10, 5); 
+            setPt('pt-R', pR); setLbl('lbl-R', pR, 10, 15); 
 
             const lnAdd = document.getElementById('ln-add');
             if(lnAdd) {
@@ -622,10 +627,6 @@ R = P + Q
             const binary = k.toString(2);
             const revBinary = binary.split('').reverse().join('');
             
-            // 1. Generate Bit Visualizer Bar (Standard Order MSB -> LSB)
-            // But we render LSB at right, so flex-row-reverse handles visual order? 
-            // Better: Render bits from LSB (index 0) to MSB, and use flex-row-reverse container.
-            
             let bitHtml = '';
             for(let i=0; i<revBinary.length; i++) {
                 const bit = revBinary[i];
@@ -639,7 +640,6 @@ R = P + Q
             }
             bitVis.innerHTML = bitHtml;
 
-            // 2. Generate Log Table
             let html = ``;
             let doubler = 1; 
             let currentTotal = 0;
@@ -655,7 +655,6 @@ R = P + Q
                     actionText = `<span class="op-ignore">0 × ${doubler}G ➜ Ignore</span>`;
                 }
 
-                // Add Row with Interaction Handlers
                 html += `<div class="sim-row" id="row-${i}" onmouseenter="highlightBit(${i})" onmouseleave="clearHighlight()">
                             <div class="col-step">Step ${i}</div>
                             <div class="col-bit"><span class="${bit === '1' ? 'tag-bit-1' : 'tag-bit-0'}">${bit}</span></div>
@@ -676,11 +675,9 @@ R = P + Q
 
         // --- Highlight Logic ---
         function highlightBit(index) {
-            // Remove previous highlights
             document.querySelectorAll('.bit-box').forEach(el => el.classList.remove('bit-active'));
             document.querySelectorAll('.sim-row').forEach(el => el.classList.remove('active-row'));
 
-            // Add highlight to current
             const bitEl = document.getElementById(`bit-box-${index}`);
             const rowEl = document.getElementById(`row-${index}`);
             
@@ -702,7 +699,7 @@ R = P + Q
                 <span class="sig-label">Created by</span>
                 <span class="sig-name">EunChang</span>
                 <a href="mailto:focus81@teia.co.kr" class="email-link">
-                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    <svg class="email-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                 </a>
             </div>
         </div>
