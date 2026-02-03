@@ -79,10 +79,24 @@
                         <div class="bg-slate-900/50 p-2 rounded text-center font-mono text-slate-300 mb-2 border border-slate-700">
                             \(1 \le d \le n-1\)
                         </div>
-                        <p class="text-sm text-slate-400 leading-relaxed">
+                        <p class="text-sm text-slate-400 leading-relaxed mb-4">
                             여기서 \(n\)은 트랙의 <strong>전체 길이(Order)</strong>입니다.<br>
                             트랙을 \(n\)바퀴 돌면 제자리로 돌아오기 때문에, \(n\)보다 큰 수는 의미가 없으며 보안상 취약할 수 있습니다.
                         </p>
+
+                        <div class="border-t border-slate-700/50 pt-4 mt-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">👀 실제 n의 크기 (secp256k1 기준)</span>
+                            <div class="font-mono text-[10px] md:text-xs text-green-400 break-all bg-black/40 p-3 rounded border border-green-900/30 shadow-inner">
+                                115,792,089,237,316,195,423,570,985,008,687,907,852,837,564,279,074,904,382,605,163,141,518,161,494,337
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-[10px] text-slate-500">Total 78 digits (256 bits)</span>
+                                <span class="text-[10px] text-orange-400 font-bold">≈ \(1.15 \times 10^{77}\) (우주의 원자 수 레벨)</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-2 leading-snug">
+                                * 이 거대한 숫자 중 하나를 무작위로 뽑기 때문에, 슈퍼컴퓨터로도 당신의 키를 찍어서 맞추는 것은 불가능합니다.
+                            </p>
+                        </div>
                     </div>
 
                     <div class="bg-slate-800/50 p-4 rounded-lg border border-slate-700 text-sm text-slate-400">
