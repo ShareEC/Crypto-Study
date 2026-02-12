@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA Theory - 수학적 원리 (Final Logic)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    
+    <style>
+        /* Theory Specific Styles */
+        .concept-box {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid #475569;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* RSA Context Box */
+        .rsa-context {
+            background: #172554;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-top: 2rem;
+            position: relative;
+        }
+        .rsa-context::before {
+            content: "🔗 RSA 적용";
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background: #3b82f6;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Grid for Totient */
+        .totient-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+            gap: 6px;
+            margin-top: 1rem;
+        }
+        .num-box {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: bold;
+            font-family: monospace;
+            transition: all 0.3s;
+            cursor: default;
+        }
+        .num-coprime {
+            background: #059669;
+            color: #ecfdf5;
+            border: 1px solid #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+        
+        /* Trapdoor Visualization */
+        .trapdoor-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0f172a;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px dashed #334155;
+        }
+        .arrow-anim {
+            font-size: 2rem;
+            color: #64748b;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.5; transform: scale(0.9); } }
+
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        .history-card {
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+        .history-card strong { color: #facc15; display: block; margin-bottom: 4px; font-size: 1.1rem; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-950 text-slate-200">
+
+    <a href="../index.html" class="home-btn fixed top-6 left-6 z-50 bg-slate-800 px-4 py-2 rounded-full border border-slate-600 hover:bg-slate-700 transition flex items-center gap-2 text-sm text-slate-300">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Home
+    </a>
+
+    <div class="max-w-4xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16">
+            <span class="text-indigo-500 font-bold tracking-wider text-sm uppercase">Prerequisite Class</span>
+            <h1 class="text-4xl font-black text-white mt-2 mb-4">RSA Mathematics</h1>
+            <p class="text-slate-400">"RSA를 지탱하는 3가지 수학적 기둥과 그 연결 고리를 이해합니다."</p>
+        </header>
+
+        <section class="page-section">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="bg-indigo-600 text-white font-bold px-3 py-1 rounded-full text-sm">Concept 0</span>
+                <h2 class="text-2xl font-bold text-white">RSA의 탄생과 의미</h2>
+            </div>
+
+            <div class="concept-box">
+                <h3 class="text-xl font-bold text-white mb-4">Who is RSA?</h3>
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    1977년 MIT의 세 명의 과학자가 발명했습니다. RSA라는 이름은 그들의 성(Last Name) 앞글자를 따서 만들었습니다.
+                </p>
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="history-card">
+                        <strong>R</strong>ivest
+                        <span class="text-xs text-slate-400">Ron Rivest</span>
+                    </div>
+                    <div class="history-card">
+                        <strong>S</strong>hamir
+                        <span class="text-xs text-slate-400">Adi Shamir</span>
+                    </div>
+                    <div class="history-card">
+                        <strong>A</strong>dleman
+                        <span class="text-xs text-slate-400">Leonard Adleman</span>
+                    </div>
+                </div>
+
+                <div class="bg-black/30 p-6 rounded-xl border border-indigo-500/30">
+                    <h4 class="text-lg font-bold text-indigo-300 mb-3">🔥 왜 혁명적인가? (The Problem)</h4>
+                    <p class="text-sm text-slate-300 mb-4">
+                        이전까지는 <strong>"잠그는 열쇠 = 여는 열쇠"</strong>여서 열쇠 배송이 문제였습니다.<br>
+                        RSA는 <strong>"잠그는 키(공개) ≠ 여는 키(개인)"</strong>로 분리하여 이 문제를 해결했습니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="bg-blue-600 text-white font-bold px-3 py-1 rounded-full text-sm">Concept 1</span>
+                <h2 class="text-2xl font-bold text-white">트랩도어 함수 (Trapdoor Function)</h2>
+            </div>
+            
+            <div class="concept-box">
+                <div class="grid grid-cols-3 gap-2 text-center text-xs mb-6">
+                    <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                        <div class="text-blue-400 font-bold mb-1">🏃Everyone</div>
+                        <div class="text-slate-400">가는 길 (암호화)</div>
+                        <div class="text-lg mt-1">Easy ⭕</div>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded border border-slate-600">
+                        <div class="text-red-400 font-bold mb-1">🕵️ Hacker</div>
+                        <div class="text-slate-400">오는 길 (해킹)</div>
+                        <div class="text-lg mt-1">Hard ❌</div>
+                    </div>
+                    <div class="bg-slate-800 p-3 rounded border border-yellow-500/50 shadow-[0_0_10px_rgba(234,179,8,0.1)]">
+                        <div class="text-yellow-400 font-bold mb-1">🔑 Owner</div>
+                        <div class="text-slate-400">비밀 통로 (복호화)</div>
+                        <div class="text-lg mt-1">Easy ⭕</div>
+                    </div>
+                </div>
+
+                <div class="trapdoor-container mb-8">
+                    <div class="text-center">
+                        <div class="text-blue-400 font-bold mb-2">Easy</div>
+                        <div class="bg-slate-800 p-4 rounded-lg border border-blue-500/30">
+                            <div class="text-2xl font-mono text-white">p × q</div>
+                            <div class="text-sm text-slate-500 mt-1">두 소수의 곱셈</div>
+                        </div>
+                    </div>
+                    <div class="arrow-anim">➡</div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-white font-mono bg-black/30 p-4 rounded-full w-20 h-20 flex items-center justify-center border-2 border-white mx-auto">N</div>
+                        <div class="text-xs text-slate-500 mt-2">거대한 합성수</div>
+                    </div>
+                    <div class="arrow-anim text-red-500">❌</div>
+                    <div class="text-center opacity-50">
+                        <div class="text-red-400 font-bold mb-2">Hard</div>
+                        <div class="bg-slate-800 p-4 rounded-lg border border-red-500/30">
+                            <div class="text-2xl font-mono text-white">? × ?</div>
+                            <div class="text-sm text-slate-500 mt-1">소인수분해</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rsa-context">
+                    <h4 class="text-white font-bold mb-2">Q. RSA에서의 트랩도어란?</h4>
+                    <p class="text-sm text-blue-200">
+                        해커는 \(N\)을 받아도 소인수분해를 못해 쩔쩔매지만,<br>
+                        주인은 <strong>"내가 \(p\)와 \(q\)를 곱했다"</strong>는 비밀 정보(Trapdoor Info)를 알기에 즉시 키를 만들 수 있습니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="bg-pink-600 text-white font-bold px-3 py-1 rounded-full text-sm">Concept 2</span>
+                <h2 class="text-2xl font-bold text-white">오일러 피 함수 (Euler's Totient)</h2>
+            </div>
+
+            <div class="concept-box">
+                <div class="flex md:flex-row flex-col gap-8 mb-8">
+                    
+                    <div class="flex-1 space-y-6">
+                        <div class="bg-slate-800 p-5 rounded-lg border-l-4 border-pink-500">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-lg font-bold text-pink-300">1. 공식의 정의 (The Formula)</h3>
+                            </div>
+                            <p class="text-sm text-slate-300 mb-4">
+                                \(N\)보다 작으면서 \(N\)과 <strong>서로소(Coprime)인 수의 개수</strong>를 구하는 공식입니다.<br>
+                                소수 \(p, q\)의 성질을 이용하면 아주 쉽게 계산됩니다.
+                            </p>
+                            <div class="bg-black/40 p-4 rounded-lg text-center border border-slate-700/50">
+                                <div class="text-[10px] text-slate-500 mb-1 uppercase tracking-widest">Target: Count VIPs</div>
+                                <div class="font-mono text-xl text-white mb-2">
+                                    φ(N) = <span class="text-pink-400 font-bold">(p-1)</span> × <span class="text-blue-400 font-bold">(q-1)</span>
+                                </div>
+                                <div class="text-xs text-slate-400 grid grid-cols-2 gap-2 mt-3 border-t border-slate-700/50 pt-2">
+                                    <div>
+                                        <span class="text-pink-400 font-bold">p-1</span>
+                                        <span class="block text-[9px] text-slate-500">p의 배수 제외</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-blue-400 font-bold">q-1</span>
+                                        <span class="block text-[9px] text-slate-500">q의 배수 제외</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800 p-5 rounded-lg border-l-4 border-purple-500">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-lg font-bold text-purple-300">2. 왜 서로소만 세나요?</h3>
+                            </div>
+                            <p class="text-sm text-slate-300 mb-4 leading-relaxed">
+                                <strong>"유효한 숫자만 골라내기 위해서입니다."</strong>
+                            </p>
+                            <ul class="space-y-3">
+                                <li class="flex gap-3 text-xs text-slate-300">
+                                    <span class="flex-shrink-0 w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center font-bold text-white">❌</span>
+                                    <div>
+                                        <strong class="text-red-300 block mb-0.5">약수가 있는 수 (불량품)</strong>
+                                        \(N\)과 약수를 공유하는 수는 곱셈의 <strong>역원(Inverse)이 존재하지 않아</strong> 암호화/복호화 연산을 되돌릴 수 없습니다.
+                                    </div>
+                                </li>
+                                <li class="flex gap-3 text-xs text-slate-300">
+                                    <span class="flex-shrink-0 w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center font-bold text-white">⭕</span>
+                                    <div>
+                                        <strong class="text-green-300 block mb-0.5">서로소 (정품)</strong>
+                                        오직 서로소들만이 역원을 가지며, 안전하게 수학적 그룹(Group)을 형성합니다. 우리는 이 <span class="text-pink-400 font-bold">\(\phi(N)\)개</span>의 숫자만 사용합니다.
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700 flex flex-col h-full">
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-600 mb-4">
+                            <div class="text-center text-[10px] text-slate-400 mb-2 uppercase tracking-widest">Select Primes (p, q)</div>
+                            <div class="flex items-end justify-center gap-2">
+                                <div class="text-center">
+                                    <label class="block text-[10px] text-pink-400 font-bold mb-1">p</label>
+                                    <select id="p-input" class="bg-slate-700 text-white text-sm py-1 px-2 rounded border border-pink-500 focus:outline-none text-center w-14" onchange="updateFormula()">
+                                        <option value="2">2</option>
+                                        <option value="3" selected>3</option>
+                                        <option value="5">5</option>
+                                    </select>
+                                </div>
+                                <div class="text-slate-400 font-bold pb-1">×</div>
+                                <div class="text-center">
+                                    <label class="block text-[10px] text-blue-400 font-bold mb-1">q</label>
+                                    <select id="q-input" class="bg-slate-700 text-white text-sm py-1 px-2 rounded border border-blue-500 focus:outline-none text-center w-14" onchange="updateFormula()">
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="5" selected>5</option>
+                                        <option value="7">7</option>
+                                    </select>
+                                </div>
+                                <div class="text-slate-400 font-bold pb-1">=</div>
+                                <div class="text-center">
+                                    <label class="block text-[10px] text-white font-bold mb-1">N</label>
+                                    <div id="n-display-box" class="bg-black/50 text-white text-sm py-1 px-3 rounded border border-slate-500 w-14 font-mono font-bold">15</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="relative flex-grow flex flex-col">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[9px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded">Modulo N World</span>
+                                <div class="flex gap-2 text-[9px]">
+                                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span>Coprime(VIP)</span>
+                                    <span class="flex items-center gap-1 opacity-50"><span class="w-2 h-2 rounded-full bg-slate-500"></span>Multiple</span>
+                                </div>
+                            </div>
+                            <div id="totient-grid" class="totient-grid mb-4 content-start min-h-[150px]"></div>
+                        </div>
+                        
+                        <div class="mt-auto bg-slate-800 p-3 rounded border border-slate-600">
+                            <div class="flex justify-between items-center text-sm">
+                                <div class="text-center w-1/2 border-r border-slate-600">
+                                    <div class="text-slate-500 text-xs">Direct Count</div>
+                                    <div class="font-bold text-green-400 text-xl" id="count-real">8</div>
+                                </div>
+                                <div class="text-center w-1/2">
+                                    <div class="text-slate-500 text-xs">Formula Result</div>
+                                    <div class="font-bold text-white text-xl" id="count-formula">8</div>
+                                </div>
+                            </div>
+                            <div id="match-status" class="text-center text-[10px] font-bold text-green-500 mt-1 uppercase tracking-wider">Matches Perfectly! ✅</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rsa-context mt-6">
+                    <h4 class="text-white font-bold mb-2">Q. 그래서 RSA에서 이걸 왜 쓰나요?</h4>
+                    <p class="text-sm text-blue-200 mb-2"><strong>"안전한 운동장의 크기(N)와 유효한 숫자의 개수(φ)를 확보"</strong></p>
+                    <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                        <li>이 <span class="text-pink-300 font-bold">개수(\(\phi(N)\))</span>가 나중에 숫자들이 순환하는 <strong>주기(Cycle)</strong>가 되기 때문입니다. (다음 장 참조)</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="bg-purple-600 text-white font-bold px-3 py-1 rounded-full text-sm">Concept 3</span>
+                <h2 class="text-2xl font-bold text-white">오일러의 정리 (Euler's Theorem)</h2>
+            </div>
+
+            <div class="concept-box">
+                <div class="flex md:flex-row flex-col gap-8 mb-6">
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-purple-300 mb-4">🔄 개수(\(\phi\))가 곧 주기(Period)</h3>
+                        
+                        <div class="bg-slate-800 p-5 rounded-lg border-l-4 border-purple-500 mb-4">
+                            <div class="mb-4 border-b border-slate-700 pb-4">
+                                <span class="text-[10px] text-pink-400 font-bold uppercase tracking-wider block mb-2">📌 Logic Flow</span>
+                                <p class="text-xs text-slate-300 mb-2">
+                                    유한한 공간에서 계속 이동(거듭제곱)하면 반드시 제자리로 돌아옵니다.<br>
+                                    이때 <strong>제자리로 돌아오는 횟수</strong>가 바로 유효한 숫자의 개수 <span class="text-pink-400 font-bold">\(\phi(N)\)</span>입니다.
+                                </p>
+                            </div>
+                            <div>
+                                <span class="text-[10px] text-purple-400 font-bold uppercase tracking-wider block mb-2">🎯 오일러의 마법 (Theorem)</span>
+                                <p class="text-xs text-slate-300 mb-2">
+                                    "어떤 숫자든 <strong>주기(\(\phi(N)\))만큼 거듭제곱</strong>하면, 무조건 <strong>1(초기화)</strong>이 된다."
+                                </p>
+                                <div class="bg-black/30 p-2 rounded text-center font-mono border border-purple-500/30">
+                                    <span class="text-white text-lg">M</span>
+                                    <sup class="text-pink-400 font-bold text-sm">φ(N)</sup>
+                                    <span class="text-slate-500"> ≡ </span>
+                                    <span class="text-purple-400 font-bold text-xl">1</span>
+                                    <span class="text-slate-500 text-xs ml-1">(mod N)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-indigo-900/30 p-4 rounded-lg border border-indigo-500/50 text-center">
+                            <h4 class="text-indigo-300 font-bold mb-2 text-sm">💡 시각화 보는 법</h4>
+                            <p class="text-xs text-yellow-300">
+                                시뮬레이터에서 <span class="text-white font-bold">φ번째에 1</span>이 되고,<br>
+                                <span class="text-yellow-400 font-bold">φ+1번째에 원래 숫자(M)</span>로 돌아오는 것을 확인하세요!
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-slate-900 p-4 rounded-xl border border-slate-700 flex flex-col">
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-600 mb-4">
+                            <div class="text-center text-[10px] text-slate-400 mb-2 uppercase tracking-widest">Change Environment (N, φ)</div>
+                            <div class="flex items-end justify-center gap-3 border-b border-slate-700 pb-3 mb-3">
+                                <div class="text-center">
+                                    <label class="block text-[10px] text-pink-400 font-bold mb-1">p</label>
+                                    <select id="th-p" class="bg-slate-700 text-white text-sm py-1 px-2 rounded border border-pink-500 focus:outline-none text-center w-14" onchange="updateTheorem()">
+                                        <option value="3" selected>3</option>
+                                        <option value="5">5</option>
+                                        <option value="7">7</option>
+                                    </select>
+                                </div>
+                                <div class="text-center">
+                                    <label class="block text-[10px] text-blue-400 font-bold mb-1">q</label>
+                                    <select id="th-q" class="bg-slate-700 text-white text-sm py-1 px-2 rounded border border-blue-500 focus:outline-none text-center w-14" onchange="updateTheorem()">
+                                        <option value="3">3</option>
+                                        <option value="5" selected>5</option>
+                                        <option value="7">7</option>
+                                    </select>
+                                </div>
+                                <div class="flex gap-4 ml-2">
+                                    <div class="text-center">
+                                        <label class="block text-[10px] text-white font-bold mb-1">N</label>
+                                        <div id="th-n-display" class="font-mono text-sm font-bold text-white">15</div>
+                                    </div>
+                                    <div class="text-center">
+                                        <label class="block text-[10px] text-purple-400 font-bold mb-1">φ(N)</label>
+                                        <div id="th-phi-display" class="font-mono text-sm font-bold text-purple-400">8</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <label class="text-white font-bold text-sm whitespace-nowrap">Message (M):</label>
+                                <input type="range" min="2" max="14" value="2" class="w-full accent-purple-500" id="m-slider" oninput="updateTheorem()">
+                                <span id="m-val" class="text-purple-400 font-mono font-bold text-xl w-8 text-center">2</span>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow bg-black/20 rounded-lg p-2 overflow-y-auto max-h-[220px] custom-scrollbar">
+                            <table class="w-full text-center text-sm border-collapse">
+                                <thead class="text-xs text-slate-500 border-b border-slate-700">
+                                    <tr><th class="py-1">Step</th><th class="py-1">Calculation</th><th class="py-1">Result (mod N)</th></tr>
+                                </thead>
+                                <tbody id="power-table" class="font-mono"></tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4 bg-slate-800 p-3 rounded border border-slate-600">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-slate-400">At Step <span id="target-step-plus-one" class="font-bold text-yellow-400">9</span> (φ+1):</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-500 text-xs">Back to M?</span>
+                                    <span id="theorem-status" class="font-bold text-green-400 uppercase">YES ✅</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rsa-context">
+                    <h4 class="text-white font-bold mb-2">Q. 그래서 RSA에서 이걸 왜 쓰나요?</h4>
+                    <p class="text-sm text-blue-200 mb-2"><strong>"복호화의 보증수표"</strong></p>
+                    <ul class="list-disc list-inside text-xs text-slate-300 space-y-1">
+                        <li>우리는 <span class="text-pink-300 font-bold">\(\phi(N)\)만큼 돌면 1</span>이 되고, <span class="text-yellow-400 font-bold">한 번 더 돌면(\(\phi+1\)) 원래 숫자</span>가 된다는 것을 눈으로 확인했습니다.</li>
+                        <li>이제 <span class="text-yellow-400 font-bold">다음 장(Concept 4)</span>에서, 이 법칙을 역이용해 <strong>비밀키 \(d\)를 만드는 공식</strong>을 유도할 것입니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <div class="flex items-center gap-3 mb-6">
+                <span class="bg-yellow-600 text-white font-bold px-3 py-1 rounded-full text-sm">Concept 4</span>
+                <h2 class="text-2xl font-bold text-white">비밀키 d의 탄생 (Key Generation)</h2>
+            </div>
+
+            <div class="concept-box">
+                <h3 class="text-lg font-bold text-yellow-300 mb-4">"오일러의 정리를 응용한 키 만들기"</h3>
+                <p class="text-slate-300 mb-6 leading-relaxed">
+                    앞에서 확인했듯이 \(M^{\phi(N)+1} \equiv M\)입니다.<br>
+                    우리가 <span class="text-blue-400">암호화(\(e\))</span>하고 <span class="text-purple-400">복호화(\(d\))</span>해서 원래 숫자(\(M^1\))로 돌아오려면, 지수끼리의 곱(\(e \cdot d\))이 <strong>주기(\(\phi(N)\))보다 정확히 1만큼 더 크면</strong> 됩니다.
+                </p>
+
+                <div class="bg-slate-900 p-6 rounded-xl border border-yellow-500/30 text-center mb-6">
+                    <div class="text-xs text-slate-500 mb-2 uppercase tracking-widest">The RSA Key Equation</div>
+                    <div class="font-mono text-2xl text-white mb-3">
+                        \(e \cdot d \equiv 1 \pmod{\phi(N)}\)
+                    </div>
+                    <p class="text-sm text-slate-400">
+                        "\(e\)와 \(d\)를 곱해서 \(\phi(N)\)으로 나누면 <strong>나머지가 1</strong>이 된다."
+                        <br><span class="text-xs text-slate-500">(즉, \(e \cdot d = k \cdot \phi(N) + 1\))</span>
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-black/30 p-4 rounded-lg border border-slate-700">
+                        <strong class="text-blue-400 block mb-2">왜 e는 공개해도 되나요?</strong>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            \(d\)를 구하려면 식의 법(Modulus)인 <span class="text-pink-400 font-bold">\(\phi(N)\)</span>을 알아야 합니다. 
+                            하지만 해커는 \(N\)만 알지, \(N\)을 소인수분해해서 \(\phi(N)\)을 구할 수 없기 때문입니다. (트랩도어)
+                        </p>
+                    </div>
+                    <div class="bg-black/30 p-4 rounded-lg border border-slate-700">
+                        <strong class="text-purple-400 block mb-2">d는 어떻게 계산하나요?</strong>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            수학적으로 <strong>확장 유클리드 알고리즘</strong>(Extended Euclidean Algorithm)을 사용하면, 
+                            이 방정식을 만족하는 \(d\)를 효율적으로 찾아낼 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="text-center mt-12">
+            <p class="text-slate-500 mb-4">이제 모든 이론을 마스터했습니다. 실제로 키를 만들어볼까요?</p>
+            <a href="rsa_basics.html" class="inline-block bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105">
+                🚀 RSA 시뮬레이터 실행하기 (Next Step)
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        // Common Helper
+        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+
+        // --- Concept 2 Logic ---
+        function updateFormula() {
+            const p = parseInt(document.getElementById('p-input').value);
+            const q = parseInt(document.getElementById('q-input').value);
+            const n = p * q;
+
+            // Update N Display
+            document.getElementById('n-display-box').innerText = n;
+            
+            const grid = document.getElementById('totient-grid');
+            grid.innerHTML = '';
+            let count = 0;
+
+            // Generate Grid (1 to N-1)
+            for(let i=1; i<n; i++) {
+                const el = document.createElement('div');
+                el.className = 'num-box text-xs';
+                el.innerText = i;
+                
+                let isCoprime = true;
+                
+                // Divisibility Checks
+                if (i % p === 0) {
+                    el.style.backgroundColor = 'rgba(236, 72, 153, 0.2)'; // Pink
+                    el.style.color = '#f472b6';
+                    el.style.border = '1px solid rgba(236, 72, 153, 0.5)';
+                    isCoprime = false;
+                } 
+                else if (i % q === 0) {
+                    el.style.backgroundColor = 'rgba(59, 130, 246, 0.2)'; // Blue
+                    el.style.color = '#60a5fa';
+                    el.style.border = '1px solid rgba(59, 130, 246, 0.5)';
+                    isCoprime = false;
+                } 
+                if (i % p === 0 && i % q === 0) {
+                    el.style.background = 'linear-gradient(135deg, rgba(236,72,153,0.3), rgba(59,130,246,0.3))';
+                }
+
+                if (isCoprime) {
+                    el.classList.add('num-coprime');
+                    count++;
+                } else {
+                    el.style.opacity = "0.6";
+                }
+                grid.appendChild(el);
+            }
+            
+            // Verification
+            const formulaResult = (p - 1) * (q - 1);
+            document.getElementById('count-real').innerText = count;
+            document.getElementById('count-formula').innerText = formulaResult;
+            
+            const status = document.getElementById('match-status');
+            if(count === formulaResult) {
+                status.innerText = "Matches Perfectly! ✅";
+                status.className = "text-center text-[10px] font-bold text-green-500 mt-1 uppercase tracking-wider";
+            } else {
+                status.innerText = "Mismatch";
+                status.className = "text-center text-[10px] font-bold text-red-500 mt-1 uppercase tracking-wider";
+            }
+        }
+
+        // --- Concept 3 Logic (Updated to show Phi+1) ---
+        function updateTheorem() {
+            const p = parseInt(document.getElementById('th-p').value);
+            const q = parseInt(document.getElementById('th-q').value);
+            
+            const n = p * q;
+            const phi = (p - 1) * (q - 1);
+
+            // Update Displays
+            document.getElementById('th-n-display').innerText = n;
+            document.getElementById('th-phi-display').innerText = phi;
+            document.getElementById('target-step-plus-one').innerText = phi + 1; // Show phi+1
+
+            const slider = document.getElementById('m-slider');
+            const mValDisplay = document.getElementById('m-val');
+            const tableBody = document.getElementById('power-table');
+            const status = document.getElementById('theorem-status');
+
+            // Update Slider Range
+            slider.max = n - 1;
+            
+            let m = parseInt(slider.value);
+            if(m >= n) m = n - 1;
+            
+            // Auto-skip non-coprime
+            let attempts = 0;
+            while(gcd(m, n) !== 1 && attempts < n) {
+                m++;
+                if(m >= n) m = 2;
+                attempts++;
+            }
+            if(attempts >= n) m = 2; 
+
+            slider.value = m;
+            mValDisplay.innerText = m;
+            
+            tableBody.innerHTML = '';
+            let isResetTo1 = false;
+            let isBackToM = false;
+
+            // Loop until phi + 1
+            for(let i=1; i <= phi + 1; i++) {
+                const row = document.createElement('tr');
+                let modVal = Number((BigInt(m) ** BigInt(i)) % BigInt(n));
+
+                if (i === phi) {
+                    row.className = "bg-purple-900/40 border-t border-purple-500/50"; // Highlight Phi (1)
+                    if(modVal === 1) isResetTo1 = true;
+                } else if (i === phi + 1) {
+                    row.className = "bg-yellow-900/40 border-t border-yellow-500/50"; // Highlight Phi+1 (M)
+                    if(modVal === m) isBackToM = true;
+                } else {
+                    row.className = "border-b border-slate-800/50 text-slate-400";
+                }
+
+                let stepLabel = i;
+                if (i === phi) stepLabel += " (φ)";
+                if (i === phi + 1) stepLabel += " (φ+1)";
+
+                let resultDisplay = modVal;
+                if (i === phi) resultDisplay = `<span class="text-purple-400 font-bold text-lg">${modVal}</span>`;
+                if (i === phi + 1) resultDisplay = `<span class="text-yellow-400 font-bold text-lg">${modVal}</span>`;
+
+                row.innerHTML = `
+                    <td class="py-2 text-slate-500 text-xs">${stepLabel}</td>
+                    <td class="py-2 text-xs">${m}<sup>${i}</sup></td>
+                    <td class="py-2 font-bold">${resultDisplay}</td>
+                `;
+                tableBody.appendChild(row);
+            }
+
+            if (isBackToM) {
+                status.innerText = "YES (Returns to M) ✅";
+                status.className = "font-bold text-green-400 text-xs uppercase";
+            } else {
+                status.innerText = "NO ❌";
+                status.className = "font-bold text-red-400 text-xs uppercase";
+            }
+        }
+
+        // Init All
+        window.onload = function() {
+            updateFormula();
+            updateTheorem();
+        }
+    </script>
+
+    <footer class="bg-slate-950 border-t border-slate-800 py-12 mt-auto">
+        <div class="max-w-4xl mx-auto px-6 text-center text-slate-500 text-sm">
+            <p class="mb-2">Based on NIST FIPS & C Implementation Analysis</p>
+            <p class="mb-4 text-slate-400">&copy; 2026 Interactive Cryptography Master Class. Generated for Educational Purpose.</p>
+            
+            <div class="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-slate-800">
+                <span class="text-slate-500">Created by</span>
+                <span class="font-bold text-slate-300">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link inline-flex items-center justify-center">
+                    <svg class="w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

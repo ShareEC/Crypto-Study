@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA Basics - 소인수분해의 마법</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <link rel="stylesheet" href="../assets/css/style.css">
+    
+    <style>
+        /* RSA Specific Styles */
+        .number-badge { font-family: 'Roboto Mono', monospace; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+        .badge-prime { background: #be185d; color: #fbcfe8; border: 1px solid #f472b6; } /* p, q */
+        .badge-public { background: #1d4ed8; color: #bfdbfe; border: 1px solid #60a5fa; } /* N, e */
+        .badge-private { background: #7e22ce; color: #e9d5ff; border: 1px solid #c084fc; } /* d */
+        
+        /* Process Flow Arrow */
+        .calc-flow { border-left: 2px dashed #475569; margin-left: 1rem; padding-left: 1.5rem; position: relative; margin-top: 1rem; }
+        .calc-flow::before { 
+            content: "⬇"; 
+            position: absolute; 
+            left: -10px; 
+            top: -15px; 
+            background: #0f172a; 
+            color: #64748b; 
+            font-size: 1.2rem;
+        }
+        
+        .sim-panel { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; }
+        .sim-input { background: #0f172a; border: 1px solid #475569; color: white; padding: 0.5rem; border-radius: 6px; width: 100%; font-family: monospace; transition: all 0.2s; }
+        .sim-input:focus { border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); }
+        .sim-result { font-size: 1.2rem; font-weight: bold; word-break: break-all; margin-top: 0.5rem; font-family: 'Roboto Mono', monospace; }
+        
+        /* Disabled Option Style */
+        option:disabled { color: #64748b; font-style: italic; background-color: #1e293b; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-950 text-slate-200">
+
+    <a href="rsa_theory.html" class="fixed top-6 left-6 z-50 bg-slate-800 px-4 py-2 rounded-full border border-slate-600 hover:bg-slate-700 transition flex items-center gap-2 text-sm text-slate-300">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Theory
+    </a>
+
+    <div class="max-w-6xl mx-auto pt-20 pb-12 px-6">
+        
+        <header class="text-center mb-16 page-section border-b border-slate-800 pb-12">
+            <span class="text-purple-500 font-bold tracking-wider text-sm uppercase">Integer Factorization</span>
+            <h1 class="text-3xl md:text-5xl font-black text-slate-100 mt-2 mb-6">
+                RSA Encryption<br>
+                <span class="text-slate-500 text-2xl md:text-3xl">Rivest–Shamir–Adleman</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4 max-w-2xl mx-auto">
+                "이론에서 배운 <span class="text-blue-400">트랩도어 함수</span>를 직접 실행해봅니다.<br>
+                두 소수를 곱하는 건 쉽지만, 다시 분리하는 건 얼마나 어려운지 체험해보세요."
+            </p>
+        </header>
+
+        <section class="page-section mb-12">
+            <h2 class="text-2xl font-bold text-white mb-8 border-l-4 border-purple-500 pl-4">PART 1. RSA 키 생성 프로세스</h2>
+            
+            <div class="grid lg:grid-cols-2 gap-8 items-start mb-24">
+                
+                <div class="flex flex-col gap-6">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Phase 1: Preparation</span>
+                        <div class="h-px bg-slate-800 flex-grow"></div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-bold text-pink-400 mb-2 flex items-center gap-2">
+                            <span class="bg-pink-900 text-pink-200 text-xs px-2 py-1 rounded">Private</span>
+                            Step 1. 소수 선택 (p, q)
+                        </h3>
+                        <p class="text-sm text-slate-400 mb-2">모든 것의 시작점인 두 소수를 고릅니다.</p>
+                        
+                        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs text-pink-400 font-bold block mb-1">p</label>
+                                <select id="inp-p" onchange="generateKeys()" class="bg-slate-900 text-white text-sm py-2 px-3 rounded border border-slate-600 focus:outline-none w-full cursor-pointer">
+                                    <option value="11">11</option>
+                                    <option value="17">17</option>
+                                    <option value="47">47</option>
+                                    <option value="53">53</option>
+                                    <option value="61" selected>61</option>
+                                    <option value="71">71</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-pink-400 font-bold block mb-1">q</label>
+                                <select id="inp-q" onchange="generateKeys()" class="bg-slate-900 text-white text-sm py-2 px-3 rounded border border-slate-600 focus:outline-none w-full cursor-pointer">
+                                    <option value="13">13</option>
+                                    <option value="19">19</option>
+                                    <option value="41">41</option>
+                                    <option value="53" selected>53</option>
+                                    <option value="59">59</option>
+                                    <option value="67">67</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="calc-flow">
+                        <h3 class="text-lg font-bold text-blue-400 mb-2 flex items-center gap-2">
+                            <span class="bg-blue-900 text-blue-200 text-xs px-2 py-1 rounded">Public</span>
+                            Step 2. 자물쇠 몸통 (N)
+                        </h3>
+                        <p class="text-sm text-slate-400 mb-2">두 소수를 곱해 공개할 값을 만듭니다.</p>
+                        <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 font-mono text-center text-blue-200 text-sm">
+                            N = p × q = <span id="out-N" class="font-bold text-white">-</span>
+                        </div>
+                    </div>
+
+                    <div class="calc-flow">
+                        <h3 class="text-lg font-bold text-yellow-400 mb-2 flex items-center gap-2">
+                            <span class="bg-yellow-900 text-yellow-200 text-xs px-2 py-1 rounded">Secret Bridge</span>
+                            Step 2.5. 주기의 길이 (φ)
+                        </h3>
+                        <div class="bg-slate-800 p-4 rounded-lg border border-yellow-500/50 space-y-2">
+                            <p class="text-sm text-slate-300">
+                                p와 q를 이용해 <span class="text-yellow-400">비밀 주기(Cycle)</span>를 계산합니다.
+                            </p>
+                            <div class="font-mono text-center text-yellow-200 text-sm bg-black/30 p-2 rounded">
+                                φ(N) = (p-1)(q-1) = <span id="out-phi" class="font-bold text-white">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    </div>
+
+                <div class="flex flex-col gap-6">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Phase 2: Key Construction</span>
+                        <div class="h-px bg-slate-800 flex-grow"></div>
+                    </div>
+
+                    <div class="calc-flow" style="margin-top: 0; padding-top: 0; border-left: none;"> 
+                        <div class="border-l-2 border-dashed border-slate-700 ml-4 pl-6 relative pb-2">
+                            <div class="absolute -left-[9px] -top-[5px] text-slate-600 text-lg">⬇</div>
+                            
+                            <h3 class="text-lg font-bold text-purple-400 mb-2 flex items-center gap-2">
+                                <span class="bg-purple-900 text-purple-200 text-xs px-2 py-1 rounded">Private</span>
+                                Step 3. 열쇠 만들기 (e, d)
+                            </h3>
+                            
+                            <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 text-sm space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                                    <div>
+                                        <span class="badge-public">e</span> (선택)
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-slate-400 mb-1">공개 지수 (Public Exponent)</div>
+                                        
+                                        <select id="inp-e" onchange="generateKeys()" class="bg-slate-900 text-white text-xs py-1 px-2 rounded border border-slate-600 focus:outline-none cursor-pointer">
+                                            <option value="3">3</option>
+                                            <option value="5">5</option>
+                                            <option value="17">17</option>
+                                            <option value="257">257</option>
+                                            <option value="65537" selected>65537 (Standard)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="bg-indigo-900/20 p-4 rounded border border-indigo-500/30 text-xs">
+                                    <h4 class="text-indigo-300 font-bold mb-2 flex items-center gap-1 text-sm">
+                                        <span>🧐</span> Q. 왜 하필 65537인가요?
+                                    </h4>
+                                    
+                                    <div class="space-y-3">
+                                        <div>
+                                            <span class="text-blue-400 font-bold block mb-1">1. 이진수의 마법</span>
+                                            <div class="bg-black/40 p-2 rounded text-center text-green-400 font-mono text-[10px] tracking-widest mb-1">
+                                                10000000000000001
+                                            </div>
+                                            <p class="text-slate-300 leading-relaxed">
+                                                총 17비트 중 <strong>'1'이 딱 두 개</strong>뿐입니다.<br>
+                                                컴퓨터는 '1'인 자리에서만 연산하므로, 계산 속도가 압도적으로 빠릅니다.
+                                            </p>
+                                        </div>
+                                        <div class="border-t border-indigo-500/20 pt-2">
+                                            <span class="text-yellow-400 font-bold block mb-1">2. 보안과 효율의 타협점</span>
+                                            <p class="text-slate-400">
+                                                너무 작지도(3처럼 취약하지 않음), 너무 느리지도 않은 <strong>최적의 가성비 숫자</strong>입니다.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between pt-2">
+                                    <div>
+                                        <span class="badge-private">d</span> (계산)
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-xs text-slate-400">Using <span class="text-yellow-400">φ(N)</span></div>
+                                        <div class="font-mono text-purple-300 mt-1 font-bold">
+                                            d = <span id="out-d">-</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                
+                <div class="text-center font-bold text-slate-300 mb-6 pb-2 border-b border-slate-700">
+                    🔑 최종 결과물 (Generated Key Pair)
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                    <div class="bg-blue-900/10 border border-blue-500/30 p-6 rounded-xl text-center relative group hover:bg-blue-900/20 transition">
+                        <div class="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl">Everyone Knows</div>
+                        <div class="text-4xl mb-3">📢</div>
+                        <h4 class="text-blue-400 font-bold text-lg mb-2">공개키 (Public Key)</h4>
+                        <div class="text-xl text-white font-mono mb-2 tracking-widest">
+                            ( <span class="text-blue-400 font-bold">N=</span><span id="res-N-pub">N</span>, <span class="text-blue-400 font-bold">e=</span><span id="res-e">e</span> )
+                        </div>
+                        <p class="text-xs text-slate-400">누구나 이 키로 잠글 수 있습니다.</p>
+                    </div>
+
+                    <div class="bg-purple-900/10 border border-purple-500/30 p-6 rounded-xl text-center relative group hover:bg-purple-900/20 transition">
+                        <div class="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl">Owner Only</div>
+                        <div class="text-4xl mb-3">🤐</div>
+                        <h4 class="text-purple-400 font-bold text-lg mb-2">개인키 (Private Key)</h4>
+                        <div class="text-xl text-white font-mono mb-2 tracking-widest">
+                            ( <span class="text-purple-400 font-bold">N=</span><span id="res-N-priv">N</span>, <span class="text-purple-400 font-bold">d=</span><span id="res-d">d</span> )
+                        </div>
+                        <p class="text-xs text-slate-400">
+                            오직 주인만 <span class="text-yellow-400">\(\phi(N)\)</span>을 통해 계산할 수 있습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sim-section border-t border-dashed border-slate-700 pt-12">
+            <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-teal-500 pl-4">PART 2. RSA 실전 시뮬레이터</h2>
+            <p class="text-slate-400 text-sm mb-6 bg-slate-800/50 p-4 rounded inline-block">
+                💡 <strong>Tip:</strong> 여기서 암호화 실습을 위한 별도의 키를 생성하고 테스트하세요. (PART 1과 독립적입니다)
+            </p>
+
+            <div class="grid lg:grid-cols-2 gap-8">
+                <div class="sim-panel shadow-lg">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span>🛠️</span> 1. Key Generation
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="text-xs text-pink-400 font-bold block mb-1">Prime p</label>
+                            <select id="sim-p" class="sim-input cursor-pointer">
+                                <option value="11">11</option>
+                                <option value="13">13</option>
+                                <option value="17">17</option>
+                                <option value="19">19</option>
+                                <option value="23">23</option>
+                                <option value="29">29</option>
+                                <option value="31">31</option>
+                                <option value="37">37</option>
+                                <option value="41">41</option>
+                                <option value="43">43</option>
+                                <option value="47">47</option>
+                                <option value="53">53</option>
+                                <option value="59">59</option>
+                                <option value="61" selected>61</option>
+                                <option value="67">67</option>
+                                <option value="71">71</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-pink-400 font-bold block mb-1">Prime q</label>
+                            <select id="sim-q" class="sim-input cursor-pointer">
+                                <option value="11">11</option>
+                                <option value="13">13</option>
+                                <option value="17">17</option>
+                                <option value="19">19</option>
+                                <option value="23">23</option>
+                                <option value="29">29</option>
+                                <option value="31">31</option>
+                                <option value="37">37</option>
+                                <option value="41">41</option>
+                                <option value="43">43</option>
+                                <option value="47">47</option>
+                                <option value="53" selected>53</option>
+                                <option value="59">59</option>
+                                <option value="61">61</option>
+                                <option value="67">67</option>
+                                <option value="71">71</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="text-xs text-blue-400 font-bold block mb-1">Public Exponent e</label>
+                        <select id="sim-e" class="sim-input cursor-pointer">
+                            <option value="17" selected>17</option>
+                            <option value="3">3</option>
+                            <option value="65537">65537</option>
+                        </select>
+                    </div>
+
+                    <button onclick="generateSimKeys()" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold py-3 rounded-lg transition shadow-lg transform active:scale-95">
+                        ⚡ 실습용 키 생성 (Generate)
+                    </button>
+
+                    <div class="mt-6 space-y-2 text-sm font-mono">
+                        <div class="flex justify-between bg-slate-900 p-3 rounded border border-slate-700">
+                            <span class="text-blue-400 font-bold">N (Modulus):</span>
+                            <span id="sim-out-N" class="text-white">-</span>
+                        </div>
+                        <div class="flex justify-between bg-slate-900 p-3 rounded border border-slate-700">
+                            <span class="text-slate-500">φ(N):</span>
+                            <span id="sim-out-phi" class="text-slate-400">-</span>
+                        </div>
+                        <div class="flex justify-between bg-slate-900 p-3 rounded border border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                            <span class="text-purple-400 font-bold">d (Private Key):</span>
+                            <span id="sim-out-d" class="text-purple-200 font-bold">-</span>
+                        </div>
+                    </div>
+                    <div id="sim-status-log" class="mt-2 text-center text-xs text-red-400 h-4 font-bold"></div>
+                </div>
+
+                <div class="sim-panel shadow-lg">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span>🔐</span> 2. Encryption & Decryption
+                    </h3>
+                    
+                    <div class="mb-4">
+                        <label class="text-xs text-slate-400 font-bold block mb-1">Message (숫자로 입력, N보다 작아야 함)</label>
+                        <input type="number" id="inp-msg" class="sim-input text-lg" value="123" placeholder="Enter number...">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <button onclick="encryptMsg()" class="bg-slate-700 hover:bg-blue-600 text-white py-3 rounded-lg font-bold transition flex flex-col items-center justify-center gap-1 group">
+                            <span class="text-xs text-slate-400 group-hover:text-blue-200">Public Key (e)</span>
+                            <span>🔒 암호화</span>
+                        </button>
+                        <button onclick="decryptMsg()" class="bg-slate-700 hover:bg-green-600 text-white py-3 rounded-lg font-bold transition flex flex-col items-center justify-center gap-1 group">
+                            <span class="text-xs text-slate-400 group-hover:text-green-200">Private Key (d)</span>
+                            <span>🔓 복호화</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="text-center p-4 bg-black/30 rounded-xl border border-slate-800">
+                            <div class="text-xs text-slate-500 mb-2 uppercase tracking-wider">Ciphertext (암호문)</div>
+                            <div class="text-[10px] text-slate-600 mb-1">\( C = M^e \pmod N \)</div>
+                            <div id="out-C" class="sim-result text-blue-400 break-all">-</div>
+                        </div>
+                        
+                        <div class="text-center">
+                            <span class="text-slate-600 text-2xl">⬇</span>
+                        </div>
+
+                        <div class="text-center p-4 bg-green-900/10 rounded-xl border border-green-900/30">
+                            <div class="text-xs text-slate-500 mb-2 uppercase tracking-wider">Decrypted (복호문)</div>
+                            <div class="text-[10px] text-slate-600 mb-1">\( M = C^d \pmod N \)</div>
+                            <div id="out-M" class="sim-result text-green-400 break-all">-</div>
+                        </div>
+                    </div>
+                    <div id="status-log" class="mt-4 text-center text-xs text-red-400 h-4 font-bold"></div>
+                </div>
+            </div>
+        </section>
+
+        <div class="text-center mt-16">
+            <h3 class="text-lg font-bold text-white mb-2">🤔 잠깐, 근데 이 방식에는 치명적인 단점이 있습니다.</h3>
+            <p class="text-slate-400 mb-6 text-sm">"RSA로 영화 파일 같은 큰 데이터를 보낼 수 있을까요? (Overflow 문제)"</p>
+            <a href="rsa_vs_ecc.html" class="inline-block bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105">
+                🚀 RSA vs ECC 한계와 해결책 보기 (Next Step)
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Mathematical Core ---
+        const gcd = (a, b) => b === 0n ? a : gcd(b, a % b);
+        
+        function modInverse(e, phi) {
+            let m0 = phi, t, q;
+            let x0 = 0n, x1 = 1n;
+            if (phi === 1n) return 0n;
+            while (e > 1n) {
+                q = e / phi;
+                t = phi; phi = e % phi; e = t;
+                t = x0; x0 = x1 - q * x0; x1 = t;
+            }
+            if (x1 < 0n) x1 += m0;
+            return x1;
+        }
+
+        function modPow(base, exp, mod) {
+            let res = 1n;
+            base = base % mod;
+            while (exp > 0n) {
+                if (exp % 2n === 1n) res = (res * base) % mod;
+                exp = exp / 2n;
+                base = (base * base) % mod;
+            }
+            return res;
+        }
+
+        // --- Global States (Independent) ---
+        let keys_part1 = { N: 0n, e: 0n, d: 0n };
+        let keys_part2 = { N: 0n, e: 0n, d: 0n };
+
+        // --- PART 1 Logic ---
+        function generateKeys() {
+            try {
+                const p = BigInt(document.getElementById('inp-p').value);
+                const q = BigInt(document.getElementById('inp-q').value);
+                
+                // Smart Filter for E: Only allow coprimes
+                const phi = (p - 1n) * (q - 1n);
+                const eSelect = document.getElementById('inp-e');
+                const eOptions = eSelect.options;
+                let currentValid = false;
+
+                // Update options visual state
+                for(let i=0; i<eOptions.length; i++) {
+                    const val = BigInt(eOptions[i].value);
+                    
+                    // Logic: Reset text first
+                    let baseText = val.toString();
+                    if(val === 65537n) baseText += " (Standard)";
+                    
+                    if (gcd(val, phi) !== 1n) {
+                        eOptions[i].disabled = true;
+                        eOptions[i].text = baseText + " (❌ N/A)";
+                    } else {
+                        eOptions[i].disabled = false;
+                        eOptions[i].text = baseText;
+                        if(eOptions[i].value === eSelect.value) currentValid = true;
+                    }
+                }
+
+                // If currently selected E is invalid, switch to first valid option
+                if(!currentValid) {
+                    for(let i=0; i<eOptions.length; i++) {
+                        if(!eOptions[i].disabled) {
+                            eSelect.value = eOptions[i].value;
+                            break;
+                        }
+                    }
+                }
+
+                const e = BigInt(eSelect.value);
+
+                // Basic Validation
+                if (p === q) throw "p와 q는 서로 달라야 합니다.";
+                
+                const N = p * q;
+                const d = modInverse(e, phi);
+
+                // Update PART 1 State & UI
+                keys_part1 = { N, e, d };
+                
+                document.getElementById('out-N').innerText = N.toString();
+                document.getElementById('out-phi').innerText = phi.toString();
+                document.getElementById('out-d').innerText = d.toString();
+                
+                document.getElementById('res-N-pub').innerText = N.toString();
+                document.getElementById('res-e').innerText = e.toString();
+                document.getElementById('res-N-priv').innerText = N.toString();
+                document.getElementById('res-d').innerText = d.toString();
+
+            } catch (err) {
+                console.error("Part 1 Error:", err);
+            }
+        }
+
+        // --- PART 2 Logic (Simulator) ---
+        function generateSimKeys() {
+            try {
+                const p = BigInt(document.getElementById('sim-p').value);
+                const q = BigInt(document.getElementById('sim-q').value);
+                
+                // Smart Filter for E in Part 2 as well
+                const phi = (p - 1n) * (q - 1n);
+                const eSelect = document.getElementById('sim-e');
+                const eOptions = eSelect.options;
+                let currentValid = false;
+
+                for(let i=0; i<eOptions.length; i++) {
+                    const val = BigInt(eOptions[i].value);
+                    if (gcd(val, phi) !== 1n) {
+                        eOptions[i].disabled = true;
+                        eOptions[i].text = eOptions[i].value + " (❌)";
+                    } else {
+                        eOptions[i].disabled = false;
+                        eOptions[i].text = eOptions[i].value;
+                        if(eOptions[i].value === eSelect.value) currentValid = true;
+                    }
+                }
+                if(!currentValid) {
+                    for(let i=0; i<eOptions.length; i++) {
+                        if(!eOptions[i].disabled) {
+                            eSelect.value = eOptions[i].value;
+                            break;
+                        }
+                    }
+                }
+
+                const e = BigInt(eSelect.value);
+
+                if (p === q) throw "p와 q는 서로 달라야 합니다.";
+                
+                const N = p * q;
+                const d = modInverse(e, phi);
+
+                // Update PART 2 State & UI
+                keys_part2 = { N, e, d };
+
+                document.getElementById('sim-out-N').innerText = N.toString();
+                document.getElementById('sim-out-phi').innerText = phi.toString();
+                document.getElementById('sim-out-d').innerText = d.toString();
+                document.getElementById('sim-status-log').innerText = "";
+
+                // Reset Calc Output
+                document.getElementById('out-C').innerText = "-";
+                document.getElementById('out-M').innerText = "-";
+
+                // Visual Feedback
+                const btn = document.querySelector('button[onclick="generateSimKeys()"]');
+                const origText = btn.innerText;
+                btn.innerText = "✅ Keys Generated!";
+                setTimeout(() => btn.innerText = origText, 2000);
+
+            } catch (err) {
+                document.getElementById('sim-status-log').innerText = "⚠️ " + err;
+            }
+        }
+
+        // --- Encrypt / Decrypt (Uses PART 2 Keys) ---
+        function encryptMsg() {
+            if (keys_part2.N === 0n) return alert("먼저 '실습용 키 생성' 버튼을 눌러주세요.");
+            
+            const mVal = document.getElementById('inp-msg').value;
+            if(!mVal) return;
+
+            const M = BigInt(mVal);
+            if (M >= keys_part2.N) {
+                document.getElementById('sim-status-log').innerText = `⚠️ 메시지(${M})는 N(${keys_part2.N})보다 작아야 합니다.`;
+                return;
+            } else {
+                document.getElementById('sim-status-log').innerText = "";
+            }
+
+            const C = modPow(M, keys_part2.e, keys_part2.N);
+            document.getElementById('out-C').innerText = C.toString();
+            document.getElementById('out-M').innerText = "-";
+        }
+
+        function decryptMsg() {
+            if (keys_part2.N === 0n) return;
+            const cVal = document.getElementById('out-C').innerText;
+            if (cVal === '-' || cVal === '') return alert("암호화된 메시지가 없습니다.");
+            
+            const C = BigInt(cVal);
+            const M = modPow(C, keys_part2.d, keys_part2.N);
+            document.getElementById('out-M').innerText = M.toString();
+        }
+
+        // Init
+        window.onload = function() {
+            generateKeys();     // Init Part 1
+            generateSimKeys();  // Init Part 2
+        };
+    </script>
+
+    <footer class="bg-slate-950 border-t border-slate-800 py-12 mt-auto">
+        <div class="max-w-4xl mx-auto px-6 text-center text-slate-500 text-sm">
+            <p class="mb-2">Based on NIST FIPS & C Implementation Analysis</p>
+            <p class="mb-4 text-slate-400">&copy; 2026 Interactive Cryptography Master Class. Generated for Educational Purpose.</p>
+            
+            <div class="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-slate-800">
+                <span class="text-slate-500">Created by</span>
+                <span class="font-bold text-slate-300">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link inline-flex items-center justify-center">
+                    <svg class="w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>

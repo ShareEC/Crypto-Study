@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA vs ECC - 한계와 해결책</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* Custom Styles for Charts */
+        .bar-container {
+            height: 24px;
+            background: #0f172a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 1s ease-out;
+        }
+        .bar-rsa { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        .bar-ecc { background: linear-gradient(90deg, #10b981, #34d399); }
+        
+        /* Speed Bar Animation */
+        .speed-bar {
+            height: 8px;
+            background: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .speed-fill { height: 100%; width: 0; transition: width 2s linear; }
+        .speed-aes { background: #f59e0b; width: 100%; transition: none; } /* Instant */
+        
+        /* General */
+        .page-section { margin-bottom: 5rem; }
+    </style>
+</head>
+<body class="custom-scrollbar bg-slate-950 text-slate-200 flex flex-col min-h-screen">
+
+    <a href="rsa_basics.html" class="fixed top-6 left-6 z-50 bg-slate-800 px-4 py-2 rounded-full border border-slate-600 hover:bg-slate-700 transition flex items-center gap-2 text-sm text-slate-300 shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
+        </svg>
+        Back to Simulator
+    </a>
+
+    <div class="max-w-5xl mx-auto pt-20 pb-12 px-6 flex-grow">
+        
+        <header class="text-center mb-16">
+            <span class="text-red-500 font-bold tracking-wider text-sm uppercase">Limitations & Solutions</span>
+            <h1 class="text-4xl font-black text-white mt-2 mb-4">
+                The Giants' Weakness<br>
+                <span class="text-slate-500 text-2xl">왜 RSA와 ECC로 영화를 못 보내는가?</span>
+            </h1>
+            <p class="text-slate-400 text-sm mt-4 max-w-2xl mx-auto">
+                "비대칭키 암호는 수학적으로 완벽하지만, 현실적인 <span class="text-blue-400">용량</span>, <span class="text-green-400">변환</span>, <span class="text-yellow-400">속도</span>의 한계가 있습니다."
+            </p>
+        </header>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-blue-500 pl-4">1. 용량의 한계 (The Container Problem)</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                    <p class="text-slate-300 leading-relaxed text-sm">
+                        암호화 알고리즘은 데이터를 담는 <strong>'그릇(Container)'</strong>과 같습니다. 하지만 비대칭키의 그릇은 매우 작아서 \(M < N\) 조건을 만족해야 합니다.
+                    </p>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span>RSA-2048 Container</span>
+                            <span class="text-blue-400">Max ~245 Bytes</span>
+                        </div>
+                        <div class="bar-container border border-blue-900/50"><div class="bar-fill bar-rsa" style="width: 10%;"></div></div>
+                    </div>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                        <div class="flex justify-between text-xs text-slate-400 mb-1">
+                            <span>ECC-256 Container</span>
+                            <span class="text-green-400">Max ~32 Bytes</span>
+                        </div>
+                        <div class="bar-container border border-green-900/50"><div class="bar-fill bar-ecc" style="width: 2%;"></div></div>
+                    </div>
+                </div>
+                <div class="flex flex-col items-center justify-center bg-slate-900 rounded-xl border border-slate-800 p-6">
+                    <div class="relative w-full h-40 bg-slate-800 rounded flex items-center justify-center overflow-hidden border border-dashed border-slate-600">
+                        <div class="text-center z-10">
+                            <div class="text-4xl mb-2">📦</div>
+                            <div class="text-xs text-slate-400">Large File (1GB)</div>
+                        </div>
+                        <div class="absolute inset-0 bg-red-500/10 flex items-center justify-center">
+                            <span class="text-red-500 font-black text-2xl -rotate-12 border-2 border-red-500 px-4 py-1 rounded">TOO BIG</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-green-500 pl-4">2. 변환의 난관 (The Mapping Problem)</h2>
+            <p class="text-slate-400 text-sm mb-6">
+                "RSA는 <span class="text-blue-400">정해진 틀(상수)</span>에 넣으면 바로 답이 나오지만, ECC는 <span class="text-green-400">조건을 만족할 때까지</span> 입력을 계속 바꿔야 합니다."
+            </p>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-slate-900/50 p-6 rounded-xl border border-blue-500/30 flex flex-col">
+                    <div class="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
+                        <span class="text-2xl">🚛</span>
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-blue-400">RSA: One Shot</h3>
+                            <span class="text-[10px] text-slate-500">Deterministic (확정적)</span>
+                        </div>
+                    </div>
+
+                    <div class="flex-grow flex flex-col justify-center space-y-4">
+                        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 text-center">
+                            <div class="text-[10px] text-slate-500 mb-2 font-bold uppercase tracking-wider">The RSA Machine</div>
+                            <div class="font-mono text-xl flex justify-center items-end gap-2">
+                                <span class="text-white mb-1">C = </span>
+                                <div class="flex flex-col items-center">
+                                    <span class="text-[8px] text-yellow-500 mb-1">Input (변수)</span>
+                                    <span class="text-yellow-400 border-b-2 border-yellow-500/50 px-1">M</span>
+                                </div>
+                                <div class="flex flex-col items-center">
+                                    <span class="text-[8px] text-blue-400 mb-1">Key (상수)</span>
+                                    <span class="text-blue-400 border-b-2 border-blue-500/50 px-1">^e mod N</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-600 p-3 rounded text-center shadow-lg shadow-blue-500/20 mt-auto">
+                            <span class="text-white font-bold text-sm">✅ 무조건 결과 출력 (Always)</span>
+                            <div class="text-[10px] text-blue-100 mt-1">상수값이 정해져 있으므로 실패 없음</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/50 p-6 rounded-xl border border-red-500/30 flex flex-col">
+                    <div class="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
+                        <span class="text-2xl">🏍️</span>
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-green-400">ECC: Trial & Error</h3>
+                            <span class="text-[10px] text-slate-500">Probabilistic (확률적)</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="bg-red-900/10 p-4 rounded border border-red-500/30 text-center relative overflow-hidden">
+                            <div class="text-[10px] text-slate-400 mb-1 font-bold">THE CONSTRAINT (Rule)</div>
+                            <div class="font-mono text-red-300 text-lg">y<sup>2</sup> = x<sup>3</sup> + ax + b</div>
+                            <p class="text-[10px] text-red-400 mt-2">"이 방정식을 만족해야만 함"</p>
+                        </div>
+
+                        <div class="bg-black/30 p-3 rounded-lg border border-dashed border-slate-600 relative">
+                            <span class="absolute top-2 right-2 text-[10px] text-slate-500 bg-slate-800 px-2 rounded">Koblitz Method</span>
+                            <div class="flex items-center justify-between text-xs mb-2 p-2 border-b border-slate-700/50">
+                                <div><span class="text-slate-500">Try 1:</span> <span class="text-yellow-400 font-mono">100</span></div>
+                                <div class="text-red-500 font-bold">❌ No Root</div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs mb-2 p-2 border-b border-slate-700/50">
+                                <div><span class="text-slate-500">Try 2:</span> <span class="text-yellow-400 font-mono">100</span><span class="text-blue-400 font-bold">0</span></div>
+                                <div class="text-red-500 font-bold">❌ No Root</div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs p-2 bg-green-900/20 rounded">
+                                <div><span class="text-slate-500">Try 3:</span> <span class="text-yellow-400 font-mono">100</span><span class="text-blue-400 font-bold">1</span></div>
+                                <div class="text-green-400 font-bold">✅ Found y!</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-green-600 p-3 rounded text-center shadow-lg shadow-green-500/20">
+                            <span class="text-white font-bold text-sm">⚠️ 반복 시도 필요 (Loop)</span>
+                            <div class="text-[10px] text-green-100 mt-1">공식을 통과할 때까지 데이터 변형</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-yellow-500 pl-4">3. 속도와 보안 (Efficiency & Security)</h2>
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                <div class="mb-6">
+                    <h3 class="text-lg font-bold text-white mb-2">Q. "AES처럼 파일을 잘게 쪼개서(Block) 암호화하면 안 되나요?"</h3>
+                    <p class="text-sm text-slate-400">
+                        이론적으로는 가능하지만, <strong>속도(HSM을 써도 느림), 보안(패턴 노출), 용량(뻥튀기)</strong> 문제가 발생합니다.
+                    </p>
+                </div>
+
+                <div class="grid lg:grid-cols-3 gap-6">
+                    <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-yellow-400 font-bold text-sm">1. 넘사벽 속도 차이</h4>
+                            <span class="text-2xl">🏎️</span>
+                        </div>
+                        <div class="space-y-3 mt-auto">
+                            <div>
+                                <div class="flex justify-between text-[10px] text-slate-300 mb-1">
+                                    <span>AES (CPU Built-in)</span>
+                                    <span class="text-blue-400 font-bold">~10 GB/s</span>
+                                </div>
+                                <div class="speed-bar"><div class="speed-fill speed-aes"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                    <span>RSA (High-end HSM)</span>
+                                    <span class="text-yellow-400">~0.05 GB/s</span>
+                                </div>
+                                <div class="speed-bar bg-slate-700">
+                                    <div class="h-full bg-yellow-500" style="width: 15%;"></div>
+                                </div>
+                                <div class="text-[8px] text-slate-500 mt-1 text-right">HSM을 써도 수백 배 느림</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-lg border border-red-500/30 flex flex-col relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-red-600 text-white text-[9px] px-2 py-1 rounded-bl font-bold">CRITICAL</div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-red-400 font-bold text-sm">2. 패턴 노출 (ECB)</h4>
+                            <span class="text-2xl">👁️</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-4 h-8">
+                            패딩 없이 쪼개면, <strong>같은 데이터 = 같은 암호문</strong>이 되어 원본이 노출됩니다.
+                        </p>
+                        <div class="mt-auto space-y-2">
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="bg-slate-800 text-slate-300 px-2 py-1 rounded w-12 text-center">AAAA</span>
+                                <span class="text-slate-600">→</span>
+                                <span class="bg-red-900/30 text-red-300 px-2 py-1 rounded border border-red-500/50 w-16 text-center font-mono">8F2A...</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <span class="bg-slate-800 text-slate-300 px-2 py-1 rounded w-12 text-center">AAAA</span>
+                                <span class="text-slate-600">→</span>
+                                <span class="bg-red-900/30 text-red-300 px-2 py-1 rounded border border-red-500/50 w-16 text-center font-mono">8F2A...</span>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-red-400 mt-2 text-center font-bold">⚠️ "똑같은 암호문 반복"</p>
+                    </div>
+
+                    <div class="bg-slate-900 p-4 rounded-lg border border-slate-800 flex flex-col">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-orange-400 font-bold text-sm">3. 용량 폭발 (Padding)</h4>
+                            <span class="text-2xl">🎈</span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-4 h-8">
+                            보안 문제(2번)를 막으려 패딩을 넣으면, <strong>1GB 파일이 1.3GB</strong>로 커집니다.
+                        </p>
+                        <div class="mt-auto flex items-end justify-center gap-3 h-24">
+                            <div class="w-12 bg-slate-700 flex flex-col items-center justify-center text-[9px] text-white rounded-t h-12">Data</div>
+                            <div class="text-slate-500 text-xs mb-4">vs</div>
+                            <div class="w-12 bg-orange-600 flex flex-col items-center justify-center text-[9px] text-white rounded-t h-20 relative">
+                                <span class="z-10">Enc</span>
+                                <div class="absolute bottom-0 w-full h-8 bg-black/30 w-full flex items-center justify-center border-t border-white/20">
+                                    <span class="text-[8px] opacity-70">Padding</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[9px] text-orange-400 mt-2 text-center font-bold">⚠️ "배보다 배꼽이 더 커짐"</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section">
+            <h2 class="text-2xl font-bold text-white mb-6 border-l-4 border-indigo-500 pl-4">4. 하이브리드 방식의 차이 (Transport vs Agreement)</h2>
+            <p class="text-slate-400 text-sm mb-6">
+                "대칭키(AES)를 공유하는 방식에서 RSA와 ECC는 결정적인 구조적 차이가 있습니다.<br>
+                현대 보안(TLS 1.3)에서는 <strong>보안성이 더 뛰어난 ECC 방식</strong>을 표준으로 채택하고 있습니다."
+            </p>
+
+            <div class="grid lg:grid-cols-2 gap-8">
+                <div class="bg-slate-900/50 p-6 rounded-xl border border-blue-500/30 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-slate-700 text-slate-300 text-[10px] px-2 py-1 rounded-bl font-bold">LEGACY (TLS 1.2)</div>
+                    <div class="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
+                        <span class="text-2xl">📦</span>
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-blue-400">RSA: 키 전송 (Key Transport)</h3>
+                            <span class="text-[10px] text-slate-500">"내가 만들어서 보내줄게"</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-4">
+                        <div class="text-xs text-slate-300 bg-slate-800 p-3 rounded leading-relaxed">
+                            <ol class="list-decimal pl-4 space-y-1">
+                                <li><strong>Alice:</strong> 혼자서 AES 키(<span class="text-yellow-400">K</span>)를 생성함.</li>
+                                <li><strong>Alice:</strong> Bob의 <span class="text-blue-400">공개키</span>로 <span class="text-yellow-400">K</span>를 잠금.</li>
+                                <li><strong>Network:</strong> 암호화된 키(📦)가 전송됨.</li>
+                                <li><strong>Bob:</strong> 자신의 <span class="text-purple-400">개인키</span>로 상자를 열어 <span class="text-yellow-400">K</span> 획득.</li>
+                            </ol>
+                        </div>
+                        <div class="flex items-center justify-center gap-2 text-xs bg-black/20 p-2 rounded border border-blue-500/20">
+                            <div class="text-center">👩<br><span class="text-yellow-400 font-mono">[Key]</span></div>
+                            <div class="text-slate-500">➡</div>
+                            <div class="text-center">🔒<br><span class="text-blue-400 font-mono">Encrypted</span></div>
+                            <div class="text-slate-500">➡</div>
+                            <div class="text-center">👨<br><span class="text-yellow-400 font-mono">[Key]</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-auto bg-red-900/20 border border-red-500/50 p-3 rounded">
+                        <h4 class="text-red-400 font-bold text-xs mb-1">⛔ 치명적 단점: No PFS</h4>
+                        <p class="text-[10px] text-slate-400">만약 나중에 Bob의 <strong>개인키가 해킹당하면</strong>, 과거에 주고받았던 모든 택배 상자(암호문)가 다 열리게 됩니다.</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/50 p-6 rounded-xl border border-green-500/30 flex flex-col relative overflow-hidden">
+                    <div class="absolute top-0 right-0 bg-green-600 text-white text-[10px] px-2 py-1 rounded-bl font-bold">MODERN STANDARD</div>
+                    <div class="flex items-center gap-2 mb-4 border-b border-slate-700 pb-3">
+                        <span class="text-2xl">🧪</span>
+                        <div class="flex flex-col">
+                            <h3 class="text-lg font-bold text-green-400">ECC: 키 합의 (Key Agreement)</h3>
+                            <span class="text-[10px] text-slate-500">"재료를 섞어서 같이 만들자" (ECDH)</span>
+                        </div>
+                    </div>
+                    <div class="space-y-4 mb-4">
+                        <div class="text-xs text-slate-300 bg-slate-800 p-3 rounded leading-relaxed">
+                            <ol class="list-decimal pl-4 space-y-1">
+                                <li><strong>Both:</strong> 서로 공개 재료(Public Key)를 교환함.</li>
+                                <li><strong>Alice:</strong> 내 비밀 재료 + Bob의 공개 재료 섞음.</li>
+                                <li><strong>Bob:</strong> 내 비밀 재료 + Alice의 공개 재료 섞음.</li>
+                                <li><strong>Math:</strong> 수학적으로 <strong>똑같은 AES 키(<span class="text-yellow-400">K</span>)</strong>가 생성됨!</li>
+                            </ol>
+                        </div>
+                        <div class="flex items-center justify-center gap-2 text-xs bg-black/20 p-2 rounded border border-green-500/20">
+                            <div class="text-center">👩<br><span class="text-green-400">Mix(A, Pb)</span></div>
+                            <div class="text-slate-500">⚡</div>
+                            <div class="text-center font-bold text-yellow-400 border-b border-yellow-400">Same Key<br>Created</div>
+                            <div class="text-slate-500">⚡</div>
+                            <div class="text-center">👨<br><span class="text-green-400">Mix(B, Pa)</span></div>
+                        </div>
+                    </div>
+                    <div class="mt-auto bg-green-900/20 border border-green-500/50 p-3 rounded">
+                        <h4 class="text-green-400 font-bold text-xs mb-1">✅ 장점: 완전 순방향 비밀성 (PFS)</h4>
+                        <p class="text-[10px] text-slate-400">키 자체가 전송되지 않고 <strong>계산으로 만들어집니다.</strong> 매번 새로운 재료를 쓰면, 나중에 키가 털려도 <strong>과거의 대화는 안전</strong>합니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-400 border-collapse">
+                    <thead class="text-xs text-slate-200 uppercase bg-slate-800">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 rounded-tl-lg">Feature</th>
+                            <th scope="col" class="px-6 py-3 text-blue-400">RSA (Key Transport)</th>
+                            <th scope="col" class="px-6 py-3 text-green-400 rounded-tr-lg">ECC (ECDH Agreement)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-slate-900 border-b border-slate-800">
+                        <tr class="border-b border-slate-800">
+                            <th scope="row" class="px-6 py-4 font-medium text-white">AES 키 생성</th>
+                            <td class="px-6 py-4">한 명이 만들어서 보냄 (Delivery)</td>
+                            <td class="px-6 py-4">둘이서 같이 만듦 (Derivation)</td>
+                        </tr>
+                        <tr class="border-b border-slate-800">
+                            <th scope="row" class="px-6 py-4 font-medium text-white">키 노출 위험</th>
+                            <td class="px-6 py-4 text-red-400">전송 중에 탈취 가능성 존재 (암호화는 되어있음)</td>
+                            <td class="px-6 py-4 text-green-400">키 자체가 네트워크를 안 탐 (안전)</td>
+                        </tr>
+                        <tr>
+                            <th scope="row" class="px-6 py-4 font-medium text-white">과거 보안 (PFS)</th>
+                            <td class="px-6 py-4 text-red-400">❌ 불가능 (마스터키 털리면 과거도 털림)</td>
+                            <td class="px-6 py-4 text-green-400">✅ 가능 (Ephemeral Key 사용 시 완벽 보호)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="bg-slate-950 border-t border-slate-800 py-12 mt-auto">
+        <div class="max-w-4xl mx-auto px-6 text-center text-slate-500 text-sm">
+            <p class="mb-2">Based on NIST FIPS & C Implementation Analysis</p>
+            <p class="mb-4 text-slate-400">&copy; 2026 Interactive Cryptography Master Class. Generated for Educational Purpose.</p>
+            
+            <div class="flex items-center justify-center gap-2 mt-6 pt-6 border-t border-slate-800">
+                <span class="text-slate-500">Created by</span>
+                <span class="font-bold text-slate-300">EunChang</span>
+                <a href="mailto:focus81@teia.co.kr" class="email-link inline-flex items-center justify-center">
+                    <svg class="w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
