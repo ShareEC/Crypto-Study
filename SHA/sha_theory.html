@@ -15,7 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap" rel="stylesheet">
     
    <style>
-        /* 1. 모든 요소의 크기 계산 방식 통일 (패딩 문제 해결) */
+        /* 1. 모든 요소의 크기 계산 방식 통일 */
         * {
             box-sizing: border-box;
         }
@@ -27,12 +27,9 @@
             color: #e2e8f0; 
             margin: 0;
             padding: 0;
-            
-            /* Iframe 크기에 딱 맞춤 */
             width: 100%; 
             height: 100vh; 
-            
-            overflow: hidden; /* 스크롤바 강제 제거 */
+            overflow: hidden;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -47,28 +44,17 @@
             align-items: center;
         }
 
-        /* 3. 슬라이드 크기 로직 (여기가 핵심! ⭐) */
+        /* 3. 슬라이드 크기 로직 */
         .pdf-slide {
             background-color: #1e293b;
             border: 1px solid #334155;
-            
-            /* [핵심 공식] 
-               1. 기본적으로 너비를 꽉 채우려고 시도함 (100%)
-               2. 단, 높이가 화면(100vh)을 넘어가게 되면 -> 높이에 맞춰서 너비를 줄임 (177.78vh)
-               Result: 어떤 Iframe 비율이든 절대 잘리지 않고 중앙에 꽉 참 
-            */
             width: min(100%, 177.78vh);
             aspect-ratio: 16 / 9;
-            
-            /* 중앙 정렬 */
             margin: auto;
             position: relative;
-            
-            /* Iframe용 디자인 최적화 */
             border-radius: 0;
             box-shadow: none;
             padding: 1.5rem;
-            
             display: none;
             flex-direction: column;
             overflow: hidden;
@@ -97,7 +83,6 @@
         .slide-content::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
 
         .slide-title {
-            /* 폰트 크기도 화면 높이에 비례하게 변경 (vh 단위 사용) */
             font-size: clamp(1.2rem, 4vh, 2rem);
             font-weight: 800;
             color: #f8fafc;
@@ -108,9 +93,8 @@
             flex-shrink: 0;
         }
 
-        /* 5. 텍스트 반응형 (화면이 작아지면 글씨도 작아지게) */
+        /* 5. 텍스트 반응형 */
         p, li, td, th, div {
-             /* 뷰포트 높이(vh) 기준으로 글자 크기 자동 조절 */
             font-size: clamp(0.7rem, 2vh, 1.1rem); 
         }
 
@@ -127,7 +111,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            z-index: 100;
+            z-index: 50;
             opacity: 0;
             transition: opacity 0.3s;
         }
@@ -138,22 +122,87 @@
         .control-btn:disabled { color: #334155; cursor: default; }
         .page-indicator { font-family: monospace; font-size: 0.8rem; color: #cbd5e1; min-width: 40px; text-align: center; }
         
-        /* 테이블/화살표 유틸 */
         .arrow-down { text-align: center; font-size: 1.2rem; color: #64748b; margin: 0.25rem 0; }
         .arrow-right { font-size: 1.2rem; color: #64748b; margin: 0 0.5rem; }
         .compact-table th, .compact-table td { padding: 0.5rem 0.75rem; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
     </style>
     
 </head>
 <body>
 
-    <a href="../index.html" class="fixed top-6 left-6 z-50 bg-slate-800/80 backdrop-blur px-4 py-2 rounded-full border border-slate-600 hover:bg-slate-700 transition flex items-center gap-2 text-sm text-slate-300 hover:text-white shadow-lg group">
+    <a href="../index.html" class="fixed top-6 left-6 z-40 bg-slate-800/80 backdrop-blur px-4 py-2 rounded-full border border-slate-600 hover:bg-slate-700 transition flex items-center gap-2 text-sm text-slate-300 hover:text-white shadow-lg group">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="text-slate-400 group-hover:text-white transition" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0z"/>
         </svg>
         Back to Lab
     </a>
 
+    <div id="hmacModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 md:p-8 max-w-5xl w-full mx-4 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative flex flex-col max-h-[95vh] transform transition-transform scale-95" id="hmacModalContent">
+            
+            <button onclick="closeHmacModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-2 rounded-full transition-all">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            
+            <h3 class="text-2xl md:text-3xl font-black text-white mb-2 flex items-center gap-3">
+                <span class="text-purple-500">HMAC</span> 
+                <span class="text-slate-400 text-lg md:text-xl font-normal tracking-tight">(Hash-based Message Authentication Code)</span>
+            </h3>
+            <p class="text-slate-300 text-sm md:text-base mb-6 border-b border-slate-700/80 pb-4">
+                단 하나의 마스터 비밀키를 변형하여, SHA-256 믹서기를 <strong>이중(Sandwich)으로 가동</strong>하는 완벽한 방어 아키텍처
+            </p>
+
+            <div class="flex flex-col md:flex-row gap-8 overflow-y-auto custom-scrollbar pr-2 pb-2">
+                <div class="md:w-[55%] flex flex-col items-center justify-center bg-[#f8f9fa] rounded-xl p-4 border-2 border-slate-600 shadow-inner">
+                    <img src="hmac_process.jpg" alt="HMAC Process Diagram" class="w-full h-auto rounded-lg shadow-sm">
+                </div>
+
+                <div class="md:w-[45%] flex flex-col justify-center gap-4 text-sm">
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-600 shadow-md">
+                        <h4 class="text-blue-400 font-bold mb-3 text-base flex items-center gap-2">
+                            <span class="bg-blue-900/50 px-2 py-0.5 rounded text-sm">Step 1</span> 키 분화 (Key Derivation)
+                        </h4>
+                        <p class="text-slate-300 leading-relaxed text-sm">
+                            사전에 약속된 1개의 마스터 비밀키에 서로 다른 패턴(ipad, opad)을 덧씌워 <strong class="text-blue-400">안쪽 키(Inner Key)</strong>와 <strong class="text-orange-400">바깥쪽 키(Outer Key)</strong> 두 개를 파생시킵니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-600 shadow-md">
+                        <h4 class="text-orange-400 font-bold mb-3 text-base flex items-center gap-2">
+                            <span class="bg-orange-900/50 px-2 py-0.5 rounded text-sm">Step 2</span> 이중 샌드위치 포장
+                        </h4>
+                        <ul class="space-y-4 text-slate-300 leading-relaxed text-sm">
+                            <li class="relative pl-8">
+                                <span class="absolute left-0 top-0.5 w-6 h-6 bg-blue-900 text-blue-300 text-xs font-bold flex items-center justify-center rounded-full border border-blue-500/30">1</span>
+                                <strong class="text-white block mb-1">안쪽 믹서기 가동 (Inner Hash)</strong> 
+                                <code class="text-xs text-slate-400 bg-black/40 px-2 py-1 rounded block mb-1">SHA256(Inner Key + Message)</code>
+                                <span class="text-blue-300 text-xs">→ 1차 결과물인 '중간 해시' 탄생</span>
+                            </li>
+                            <li class="relative pl-8">
+                                <span class="absolute left-0 top-0.5 w-6 h-6 bg-orange-900 text-orange-300 text-xs font-bold flex items-center justify-center rounded-full border border-orange-500/30">2</span>
+                                <strong class="text-white block mb-1">바깥쪽 믹서기 가동 (Outer Hash)</strong> 
+                                <code class="text-xs text-slate-400 bg-black/40 px-2 py-1 rounded block mb-1">SHA256(Outer Key + 1차 중간 해시)</code>
+                                <span class="text-orange-300 text-xs">→ 최종 HMAC 서명 도장 완성!</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-purple-900/40 to-slate-900 p-5 rounded-xl border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.15)] mt-2">
+                        <span class="block text-purple-400 font-bold mb-2 text-base flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            길이 연장 공격 완벽 차단
+                        </span>
+                        <p class="text-slate-300 text-sm leading-relaxed">
+                            해커가 중간 해시값을 훔쳐 뒤에 메시지를 이어 붙이려 해도, <strong>마지막에 '바깥쪽 키(Outer Key)'로 한 번 더 전체를 믹서기에 돌려버리기 때문에</strong> 키를 모르는 해커는 절대 위조 서명을 만들어낼 수 없습니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <main id="presentation-container">
 
         <section class="pdf-slide active border-t-[12px] border-t-blue-600">
@@ -173,9 +222,10 @@
                 <div class="flex items-center justify-center gap-2 mt-8 pt-6 border-t border-slate-700/50 w-full max-w-md">
                     <span class="text-slate-500">Created by</span>
                     <span class="font-bold text-slate-300">EunChang</span>
-                    <a href="mailto:focus81@teia.co.kr" class="email-link inline-flex items-center justify-center">
-                        <svg class="w-6 h-6 text-slate-400 hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    </a>
+                    <a href="#" onclick="copyEmail(event)" class="inline-flex items-center justify-center p-1.5 ml-1 bg-slate-800/80 hover:bg-slate-700 rounded-full text-blue-400 hover:text-blue-300 transition-all relative group" aria-label="Copy Email Address">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[10px] text-white bg-slate-700 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Copy Email</span>
+</a>
                 </div>
 
                 <div class="mt-auto text-xs text-slate-600 font-mono">
@@ -622,15 +672,15 @@
             <h2 class="slide-title">1단계: 패딩 (Preprocessing)</h2>
             <div class="slide-content flex flex-col h-full">
                 
-                <div class="mb-6 text-center">
-                    <p class="text-slate-300 text-lg">
+                <div class="mb-2 text-center">
+                    <p class="text-slate-300 text-base">
                         메시지를 512비트 블록 단위로 처리하기 위해 <strong>빈 공간을 채우는 과정</strong>입니다.<br>
                         <span class="text-slate-500 text-sm">(마지막 블록이 항상 512비트로 딱 떨어지게 만듭니다)</span>
                     </p>
                 </div>
 
-                <div class="bg-slate-900 p-6 rounded-xl border border-slate-700 mb-8 shadow-lg">
-                    <div class="text-center font-mono text-xl mb-6">
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-lg">
+                    <div class="text-center font-mono text-lg mb-4">
                         <span class="text-blue-400 font-bold">\( l \)</span>
                         <span class="text-slate-500 mx-1">+</span>
                         <span class="text-red-500 font-bold">1</span>
@@ -642,58 +692,83 @@
                         <span class="text-green-400 font-bold">\( 512 \times n \)</span>
                     </div>
 
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div class="bg-blue-900/20 p-3 rounded border border-blue-500/30 text-center">
-                            <span class="block text-blue-400 font-bold mb-1">\( l \) (Message)</span>
-                            <span class="text-slate-400 text-xs">원본 메시지의 비트 길이</span>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div class="bg-blue-900/20 p-2 rounded border border-blue-500/30 text-center flex flex-col items-center justify-center">
+                            <span class="block text-blue-400 font-bold mb-0.5">\( l \) (Message)</span>
+                            <span class="text-slate-400 text-[10px]">원본 메시지 비트</span>
                         </div>
-                        <div class="bg-red-900/20 p-3 rounded border border-red-500/30 text-center">
-                            <span class="block text-red-500 font-bold mb-1">1 (Separator)</span>
-                            <span class="text-slate-400 text-xs">메시지 끝을 알리는 비트</span>
+                        <div class="bg-red-900/20 p-2 rounded border border-red-500/30 text-center flex flex-col items-center justify-center">
+                            <span class="block text-red-500 font-bold mb-0.5">1 (Separator)</span>
+                            <span class="text-slate-400 text-[10px]">메시지 끝 구분자</span>
                         </div>
-                        <div class="bg-slate-800 p-3 rounded border border-slate-600 text-center">
-                            <span class="block text-slate-300 font-bold mb-1">\( k \) (Zeros)</span>
-                            <span class="text-slate-400 text-xs">나머지를 채우는 0 (가변)</span>
+                        <div class="bg-slate-800 p-2 rounded border border-slate-600 text-center flex flex-col items-center justify-center">
+                            <span class="block text-slate-300 font-bold mb-0.5">\( k \) (Zeros)</span>
+                            <span class="text-slate-400 text-[10px]">나머지 채우기 0</span>
                         </div>
-                        <div class="bg-purple-900/20 p-3 rounded border border-purple-500/30 text-center">
-                            <span class="block text-purple-400 font-bold mb-1">64 (Length)</span>
-                            <span class="text-slate-400 text-xs">원본 길이($l$) 저장 공간</span>
+                        <div class="bg-purple-900/20 p-2 rounded border border-purple-500/30 text-center flex flex-col items-center justify-center">
+                            <span class="block text-purple-400 font-bold mb-0.5">64 (Length)</span>
+                            <span class="text-slate-400 text-[10px]">원본 길이 정보</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="bg-black/30 p-6 rounded-xl border border-slate-800 relative">
-                    <div class="absolute -top-3 left-4 bg-slate-700 text-xs px-2 py-1 rounded text-slate-300 border border-slate-600">
-                        Example: Input 'abc' (24 bits)
-                    </div>
+                <div class="space-y-4 flex-grow mt-4 flex flex-col justify-center">
                     
-                    <div class="flex flex-wrap items-center gap-1 font-mono text-sm break-all leading-tight mt-2">
-                        <div class="flex flex-col items-center">
-                            <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded border border-blue-500/50 mb-1">01100001 ...</span>
-                            <span class="text-[10px] text-blue-500 font-bold">\( l=24 \)</span>
+                    <div class="bg-black/30 p-4 rounded-xl border border-slate-800 relative">
+                        <div class="absolute -top-3 left-4 bg-slate-700 text-[10px] px-2 py-0.5 rounded text-slate-300 border border-slate-600 font-bold tracking-wide">
+                            Case 1: 짧은 메시지 ($l=24$ bits)
                         </div>
-
-                        <div class="flex flex-col items-center">
-                            <span class="bg-red-500/20 text-red-500 font-bold px-2 py-1 rounded border border-red-500/50 mb-1">1</span>
-                            <span class="text-[10px] text-red-500 font-bold">End</span>
+                        <div class="flex flex-wrap items-center gap-1 font-mono text-xs break-all leading-tight mt-1">
+                            <div class="flex flex-col items-center">
+                                <span class="bg-blue-500/20 text-blue-300 px-2 py-1 rounded border border-blue-500/50 mb-0.5">Msg</span>
+                                <span class="text-[9px] text-blue-500 font-bold">24 bits</span>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <span class="bg-red-500/20 text-red-500 font-bold px-2 py-1 rounded border border-red-500/50 mb-0.5">1</span>
+                            </div>
+                            <div class="flex flex-col items-center flex-grow">
+                                <span class="bg-slate-700/30 text-slate-500 px-2 py-1 rounded border border-slate-600 w-full text-center tracking-widest mb-0.5">000 ... 000</span>
+                                <span class="text-[9px] text-slate-500 font-bold">$k=423$ bits</span>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <span class="bg-purple-500/20 text-purple-400 font-bold px-2 py-1 rounded border border-purple-500/50 mb-0.5">Val=24</span>
+                                <span class="text-[9px] text-purple-400 font-bold">64 bits</span>
+                            </div>
                         </div>
-
-                        <div class="flex flex-col items-center flex-grow">
-                            <span class="bg-slate-700/30 text-slate-500 px-2 py-1 rounded border border-slate-600 w-full text-center tracking-widest mb-1">000 ... 000</span>
-                            <span class="text-[10px] text-slate-500 font-bold">\( k=423 \) bits</span>
-                        </div>
-
-                        <div class="flex flex-col items-center">
-                            <span class="bg-purple-500/20 text-purple-400 font-bold px-2 py-1 rounded border border-purple-500/50 mb-1">...00011000</span>
-                            <span class="text-[10px] text-purple-400 font-bold">64 bits (Val=24)</span>
-                        </div>
+                        <div class="absolute right-4 top-2 text-[10px] text-slate-500 font-bold">총 512 bits (1 Block)</div>
                     </div>
-                    
-                    <p class="text-center text-xs text-slate-500 mt-4">
-                        총 길이 = 24 + 1 + 423 + 64 = <strong>512 bits</strong> (1 Block)
-                    </p>
+
+                    <div class="bg-blue-900/10 p-4 rounded-xl border border-blue-900/50 relative pt-6">
+                        <div class="absolute -top-3 left-4 bg-blue-700 text-[10px] px-2 py-0.5 rounded text-blue-100 border border-blue-500 font-bold tracking-wide shadow-lg">
+                            Case 2: 긴 메시지 ($l=1000$ bits) ➡ 여러 개의 블록으로 분할됨
+                        </div>
+                        
+                        <div class="flex flex-col gap-2 font-mono text-[10px]">
+                            <div class="flex w-full h-7">
+                                <div class="w-full bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded flex items-center justify-center shadow-sm">
+                                    Message Part 1 (512 bits)
+                                </div>
+                            </div>
+                            <div class="flex w-full h-7 gap-0.5">
+                                <div style="width: 85%" class="bg-blue-500/20 text-blue-300 border border-blue-500/50 rounded flex items-center justify-center shadow-sm">
+                                    Msg Part 2 (488 bits)
+                                </div>
+                                <div style="width: 5%" class="bg-red-500/20 text-red-500 font-bold border border-red-500/50 rounded flex items-center justify-center">1</div>
+                                <div style="width: 10%" class="bg-slate-700/30 text-slate-500 border border-slate-600 rounded flex items-center justify-center">0s (23)</div>
+                            </div>
+                            <div class="flex w-full h-7 gap-0.5">
+                                <div style="width: 70%" class="bg-slate-700/30 text-slate-500 border border-slate-600 rounded flex items-center justify-center shadow-sm">
+                                    Zeros (448 bits)
+                                </div>
+                                <div style="width: 30%" class="bg-purple-500/20 text-purple-400 font-bold border border-purple-500/50 rounded flex items-center justify-center shadow-sm">
+                                    Length=1000 (64 bits)
+                                </div>
+                            </div>
+                        </div>
+                        <div class="absolute right-4 top-2 text-[10px] text-blue-400 font-bold">총 1536 bits (3 Blocks)</div>
+                    </div>
+
                 </div>
-
             </div>
         </section>
 
@@ -818,18 +893,18 @@
                 
                 <div class="text-center mb-6">
                     <p class="text-slate-300 text-lg">
-                        첫 번째 블록을 연산하기 위해 <strong>8개의 내부 변수($H_0 \sim H_7$)</strong>에 초기값을 설정합니다.<br>
-                        <span class="text-slate-500 text-sm">이전 결과가 없는 '첫 번째 단계'를 위한 <strong>기준점(IV: Initial Vector)</strong>입니다.</span>
+                        블록을 연산하기 전 <strong>8개의 내부 변수($H_0 \sim H_7$)</strong>의 초기값을 설정합니다.<br>
+                        <span class="text-slate-500 text-sm">메시지 길이에 따라 <strong>고정값(IV)</strong>을 쓸지, <strong>앞선 결과(Chaining)</strong>를 쓸지 달라집니다.</span>
                     </p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-8 h-full">
                     
                     <div class="bg-slate-900/80 p-6 rounded-xl border border-slate-700 flex flex-col justify-center shadow-lg">
-                        <h3 class="text-yellow-500 font-bold mb-4 border-b border-slate-700 pb-2">🎯 값의 기원 (Origin)</h3>
+                        <h3 class="text-yellow-500 font-bold mb-4 border-b border-slate-700 pb-2">🎯 1번째 블록의 초기값 (IV)</h3>
                         <p class="text-slate-400 text-sm mb-4">
                             백도어가 없음을 증명하기 위해<br>
-                            <strong>처음 8개 소수(Prime)의 제곱근</strong>을 사용합니다.
+                            <strong>처음 8개 소수(Prime)의 제곱근</strong>을 가져와 사용합니다.
                         </p>
                         
                         <div class="bg-black/30 p-4 rounded-lg border border-slate-600 font-mono text-sm space-y-3">
@@ -840,7 +915,7 @@
                                 </div>
                                 <div class="text-slate-500 text-xs mt-1 pl-2 border-l-2 border-slate-600">
                                     Take fractional part: <span class="text-slate-300">0.41421356...</span><br>
-                                    Convert to Hex <span class="text-white">→ 0x6a09e667</span>
+                                    Convert to Hex <span class="text-white">→ 0x6a09e667 (H₀)</span>
                                 </div>
                             </div>
                             <div class="border-t border-slate-700 pt-2 opacity-50">
@@ -849,49 +924,56 @@
                                     <span>\(\sqrt{3} \approx 1.73205080...\)</span>
                                 </div>
                                 <div class="text-slate-500 text-xs mt-1 pl-2 border-l-2 border-slate-600">
-                                    Hex <span class="text-white">→ 0xbb67ae85</span>
+                                    Hex <span class="text-white">→ 0xbb67ae85 (H₁)</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-900/80 p-6 rounded-xl border border-slate-700 flex flex-col justify-center shadow-lg relative">
+                    <div class="bg-slate-900/80 p-5 rounded-xl border border-slate-700 flex flex-col justify-start shadow-lg relative">
                         <div class="absolute -top-3 left-6 bg-blue-600 text-white text-xs px-2 py-1 rounded font-bold shadow">
-                            Initialized State (H)
+                            State Variables Update
+                        </div>
+
+                        <div class="bg-black/40 border border-slate-600 rounded-lg p-3 mb-4 mt-2">
+                            <div class="text-[10px] text-slate-400 uppercase font-bold mb-2 text-center border-b border-slate-700 pb-1">Block Chaining (바통 터치)</div>
+                            <div class="flex justify-between items-center text-xs">
+                                <div class="flex flex-col items-center flex-1">
+                                    <span class="text-yellow-400 font-bold mb-1">Block 1 연산 시</span>
+                                    <span class="text-slate-300 text-[9px]">고정 초기값(IV) 사용</span>
+                                </div>
+                                <div class="text-slate-500 text-lg">➡</div>
+                                <div class="flex flex-col items-center flex-1 border-l border-slate-700 pl-2 ml-2">
+                                    <span class="text-green-400 font-bold mb-1">Block 2~N 연산 시</span>
+                                    <span class="text-white text-[9px] bg-green-900/40 px-1 py-0.5 rounded border border-green-500/30">이전 블록의 결과 해시</span>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="grid grid-cols-1 gap-2 font-mono text-sm">
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₀</span>
-                                <span class="text-white tracking-widest">6a09e667</span>
+                        <div class="grid grid-cols-2 gap-2 font-mono text-[11px] flex-grow content-center">
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₀</span> <span class="text-white">6a09e667</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₁</span>
-                                <span class="text-white tracking-widest">bb67ae85</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₁</span> <span class="text-white">bb67ae85</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₂</span>
-                                <span class="text-white tracking-widest">3c6ef372</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₂</span> <span class="text-white">3c6ef372</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₃</span>
-                                <span class="text-white tracking-widest">a54ff53a</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₃</span> <span class="text-white">a54ff53a</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₄</span>
-                                <span class="text-white tracking-widest">510e527f</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₄</span> <span class="text-white">510e527f</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₅</span>
-                                <span class="text-white tracking-widest">9b05688c</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₅</span> <span class="text-white">9b05688c</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₆</span>
-                                <span class="text-white tracking-widest">1f83d9ab</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₆</span> <span class="text-white">1f83d9ab</span>
                             </div>
-                            <div class="flex items-center gap-3 bg-slate-800 p-2 rounded border border-slate-600">
-                                <span class="text-blue-400 font-bold w-6">H₇</span>
-                                <span class="text-white tracking-widest">5be0cd19</span>
+                            <div class="flex items-center justify-between bg-slate-800 p-2 rounded border border-slate-600">
+                                <span class="text-blue-400 font-bold">H₇</span> <span class="text-white">5be0cd19</span>
                             </div>
                         </div>
                     </div>
@@ -1539,13 +1621,18 @@
                         </p>
                     </div>
 
-                    <div class="bg-slate-900 p-5 rounded-xl border border-slate-700 shadow-lg">
-                        <div class="flex items-center gap-3 mb-3 border-b border-slate-700 pb-2">
+                    <div class="bg-slate-900 p-5 rounded-xl border border-slate-700 shadow-lg relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-r from-purple-900/10 to-transparent pointer-events-none"></div>
+                        <div class="flex items-center gap-3 mb-3 border-b border-slate-700 pb-2 relative z-10">
                             <span class="text-2xl">🛡️</span>
-                            <h3 class="font-bold text-white">Length Extension Attack</h3>
+                            <h3 class="font-bold text-white group-hover:text-purple-300 transition-colors">Length Extension Attack</h3>
                         </div>
-                        <p class="text-sm text-slate-400 leading-relaxed">
-                            단순 \( H(k||m) \) 구조는 길이 연장 공격에 취약합니다. 메시지 인증 코드(MAC) 구현 시에는 표준화된 <strong>HMAC</strong> 구조를 사용해야 안전합니다.
+                        <p class="text-sm text-slate-400 leading-relaxed relative z-10">
+                            단순 \( H(k||m) \) 구조는 길이 연장 공격에 취약합니다. 메시지 인증 코드(MAC) 구현 시에는 
+                            <button onclick="openHmacModal()" class="inline-flex items-center gap-1 text-purple-400 font-bold hover:text-purple-300 transition-colors border-b-2 border-purple-500/50 hover:border-purple-300 outline-none pb-0.5 mt-1">
+                                표준화된 HMAC 구조
+                                <svg class="w-4 h-4 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+                            </button>를 사용해야 안전합니다.
                         </p>
                     </div>
                 </div>
@@ -1557,9 +1644,10 @@
                 <div class="mt-auto flex justify-center items-center gap-3 pt-4">
                     <span class="text-slate-500 text-sm">Created by</span>
                     <span class="font-bold text-slate-300 text-base">EunChang</span>
-                    <a href="mailto:focus81@teia.co.kr" class="text-blue-400 hover:text-blue-300 transition ml-2 bg-slate-800 p-2 rounded-full hover:bg-slate-700">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    </a>
+                   <a href="#" onclick="copyEmail(event)" class="inline-flex items-center justify-center p-1.5 ml-1 bg-slate-800/80 hover:bg-slate-700 rounded-full text-blue-400 hover:text-blue-300 transition-all relative group" aria-label="Copy Email Address">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[10px] text-white bg-slate-700 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Copy Email</span>
+</a>
                 </div>
             </div>
         </section>
@@ -1570,7 +1658,7 @@
         <button id="prevBtn" class="control-btn" onclick="prevSlide()" title="Previous Slide">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <span class="page-indicator" id="slideCounter">1 / 17</span>
+        <span class="page-indicator" id="slideCounter">1 / 10</span>
         <button id="nextBtn" class="control-btn" onclick="nextSlide()" title="Next Slide">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </button>
@@ -1585,7 +1673,46 @@
         const nextBtn = document.getElementById('nextBtn');
         const container = document.getElementById('presentation-container');
 
-        // 슬라이드 표시 로직
+        function copyEmail(e) {
+            e.preventDefault();
+            const email = "focus81@teia.co.kr";
+            navigator.clipboard.writeText(email).then(() => {
+                alert("이메일 주소가 복사되었습니다: " + email);
+            }).catch(err => {
+                prompt("이메일 주소를 복사하세요:", email);
+            });
+        }
+
+        function openHmacModal() {
+            const modal = document.getElementById('hmacModal');
+            const content = document.getElementById('hmacModalContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeHmacModal() {
+            const modal = document.getElementById('hmacModal');
+            const content = document.getElementById('hmacModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        document.getElementById('hmacModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeHmacModal();
+            }
+        });
+
         function showSlide(index) {
             slides.forEach((slide, i) => {
                 slide.classList.remove('active');
@@ -1593,9 +1720,7 @@
                     slide.classList.add('active');
                 }
             });
-            
             counter.innerText = `${index + 1} / ${totalSlides}`;
-            
             prevBtn.disabled = index === 0;
             nextBtn.disabled = index === totalSlides - 1;
             prevBtn.style.opacity = index === 0 ? "0.3" : "1";
@@ -1616,8 +1741,14 @@
             }
         }
 
-        // 1. 키보드 컨트롤 (스페이스바 스크롤 방지 포함)
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeHmacModal();
+                return;
+            }
+            if (!document.getElementById('hmacModal').classList.contains('hidden')) {
+                return;
+            }
             if (e.key === 'ArrowRight' || e.code === 'Space' || e.key === ' ') {
                 e.preventDefault(); 
                 nextSlide();
@@ -1628,7 +1759,6 @@
             }
         });
 
-        // 2. 모바일/태블릿 터치 스와이프 지원
         let touchStartX = 0;
         let touchEndX = 0;
 
@@ -1654,7 +1784,4 @@
     </script>
 
 </body>
-
 </html>
-
-
